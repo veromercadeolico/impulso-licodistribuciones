@@ -137,8 +137,14 @@ export async function aprobarSolicitud(datos: FormData) {
     FROM solicitudes s JOIN marcas m ON m.codigo = s.marca JOIN puntos p ON p.id = s.punto_id WHERE s.id = ${id}`;
   if (!s) volver(periodoId, "error", "La solicitud ya no existe.");
 
-  const inicio = `${s.dia} ${horaInicio}`;
-  const diaFin = horaFin <= horaInicio ? sumarMinutos(`${s.dia} 00:00`, 1440).slice(0, 10) : s.dia;
+  const [periodo] = await sql`SELECT estado, fecha_inicio::text, fecha_fin::text FROM periodos WHERE id = ${periodoId}`;
+  const fecha = String(datos.get("fecha") ?? "") || s.dia;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha) || fecha < periodo.fecha_inicio || fecha > periodo.fecha_fin) {
+    volver(periodoId, "error", "La fecha debe estar dentro de la semana de este periodo.", ancla);
+  }
+
+  const inicio = `${fecha} ${horaInicio}`;
+  const diaFin = horaFin <= horaInicio ? sumarMinutos(`${fecha} 00:00`, 1440).slice(0, 10) : fecha;
   const fin = `${diaFin} ${horaFin}`;
 
   const [previos, otros, [imp], disponibles] = await Promise.all([
@@ -150,6 +156,12 @@ export async function aprobarSolicitud(datos: FormData) {
     disponiblesDe(periodoId),
   ]);
   const previo = previos[0];
+  // Se compara con el día que ya tenía el turno (o el que pidió el vendedor si aún no hay turno).
+  const diaAnterior: string = previo ? previo.inicio.slice(0, 10) : s.dia;
+  const diaMovido = fecha !== diaAnterior;
+  if (diaMovido && !motivoCambio) {
+    volver(periodoId, "error", `Este turno estaba para el ${fechaCorta(diaAnterior)}: escribe el motivo del cambio de día.`, ancla);
+  }
 
   const alertas = evaluarTurno(
     { impulsadoraId, inicio, fin, municipio: s.municipio },
@@ -164,7 +176,6 @@ export async function aprobarSolicitud(datos: FormData) {
     volver(periodoId, "error", "Este turno ya está publicado: escribe el motivo del cambio.", ancla);
   }
 
-  const [periodo] = await sql`SELECT estado FROM periodos WHERE id = ${periodoId}`;
   const publicado = periodo.estado === "publicado";
   const [turno] = await sql`INSERT INTO turnos (periodo_id, solicitud_id, impulsadora_id, canal, punto_id, marca, uniforme,
       inicio, fin, alertas, motivo_excepcion, ajuste_manual, publicado)
@@ -177,12 +188,22 @@ export async function aprobarSolicitud(datos: FormData) {
   await sql`UPDATE solicitudes SET estado = 'aprobada', motivo_rechazo = NULL WHERE id = ${id}`;
   await recalcularAlertas(periodoId);
 
+  const descripcion = `${s.lugar}, ${fechaCorta(inicio)} de ${horaTexto(inicio)} a ${horaTexto(fin)}`;
+  // El cambio queda registrado con su motivo para que el vendedor lo vea en su solicitud.
+  if ((previo?.publicado || diaMovido) && motivoCambio) {
+    const reemplazo = previo && previo.impulsadora_id !== impulsadoraId
+      ? (await sql`SELECT nombre FROM usuarios WHERE id = ${previo.impulsadora_id}`)[0]?.nombre
+      : null;
+    const detalle = [
+      diaMovido ? `Movido del ${fechaCorta(diaAnterior)} al ${fechaCorta(fecha)}.` : "",
+      reemplazo ? `${imp.nombre} reemplaza a ${reemplazo}.` : "",
+      `Ahora: ${imp.nombre}, ${descripcion}`,
+    ].filter(Boolean).join(" ");
+    await sql`INSERT INTO cambios_turno (turno_id, autor_id, motivo, detalle)
+      VALUES (${turno.id}, ${autor.id}, ${motivoCambio}, ${detalle})`;
+  }
+
   if (publicado) {
-    const descripcion = `${s.lugar}, ${fechaCorta(inicio)} de ${horaTexto(inicio)} a ${horaTexto(fin)}`;
-    if (previo?.publicado) {
-      await sql`INSERT INTO cambios_turno (turno_id, autor_id, motivo, detalle)
-        VALUES (${turno.id}, ${autor.id}, ${motivoCambio}, ${`Ahora: ${imp.nombre}, ${descripcion}`})`;
-    }
     await notificar([s.vendedor_id, impulsadoraId, previo?.impulsadora_id], {
       titulo: previo?.publicado ? "Cambio en la programación" : "Turno aprobado",
       cuerpo: `${descripcion} con ${imp.nombre}.${motivoCambio ? ` Motivo: ${motivoCambio}` : ""}`,

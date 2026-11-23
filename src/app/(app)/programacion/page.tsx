@@ -242,10 +242,10 @@ export default async function ProgramacionPage({ searchParams }: { searchParams:
                 </p>
               ) : (
               <>
-              <form action={aprobarSolicitud} className="mt-3 grid gap-3 border-t border-linea pt-3 sm:grid-cols-[1fr_8rem_8rem]">
+              <form action={aprobarSolicitud} className="mt-3 grid gap-3 border-t border-linea pt-3 sm:grid-cols-3 lg:grid-cols-[1fr_10rem_8rem_8rem]">
                 <input type="hidden" name="id" value={s.id} />
                 <input type="hidden" name="periodo" value={actual.id} />
-                <div>
+                <div className="sm:col-span-3 lg:col-span-1">
                   <label htmlFor={`imp-${s.id}`} className="etiqueta">Impulsadora</label>
                   <select id={`imp-${s.id}`} name="impulsadora" defaultValue={s.impulsadora_id ?? ""} className="campo">
                     <option value="">Sin asignar</option>
@@ -257,6 +257,19 @@ export default async function ProgramacionPage({ searchParams }: { searchParams:
                   </select>
                 </div>
                 <div>
+                  <label htmlFor={`dia-${s.id}`} className="etiqueta">Fecha</label>
+                  <input
+                    id={`dia-${s.id}`}
+                    name="fecha"
+                    type="date"
+                    required
+                    min={actual.fecha_inicio}
+                    max={actual.fecha_fin}
+                    defaultValue={inicio.slice(0, 10)}
+                    className="campo"
+                  />
+                </div>
+                <div>
                   <label htmlFor={`ini-${s.id}`} className="etiqueta">Inicio</label>
                   <input id={`ini-${s.id}`} name="hora_inicio" type="time" required defaultValue={inicio.slice(11, 16)} className="campo" />
                 </div>
@@ -264,17 +277,17 @@ export default async function ProgramacionPage({ searchParams }: { searchParams:
                   <label htmlFor={`fin-${s.id}`} className="etiqueta">Fin</label>
                   <input id={`fin-${s.id}`} name="hora_fin" type="time" required defaultValue={fin.slice(11, 16)} className="campo" />
                 </div>
-                <div className="sm:col-span-3">
+                <div className="sm:col-span-3 lg:col-span-4">
                   <label htmlFor={`mot-${s.id}`} className="etiqueta">Motivo de la excepción (si hay alertas)</label>
                   <input id={`mot-${s.id}`} name="motivo_excepcion" autoFocus={sp.s === s.id && !!sp.error} defaultValue={s.motivo_excepcion ?? ""} maxLength={300} className="campo" />
                 </div>
-                {s.publicado && (
-                  <div className="sm:col-span-3">
-                    <label htmlFor={`cam-${s.id}`} className="etiqueta">Motivo del cambio (turno ya publicado)</label>
-                    <input id={`cam-${s.id}`} name="motivo_cambio" maxLength={300} className="campo" />
-                  </div>
-                )}
-                <div className="sm:col-span-3">
+                <div className="sm:col-span-3 lg:col-span-4">
+                  <label htmlFor={`cam-${s.id}`} className="etiqueta">
+                    {s.publicado ? "Motivo del cambio (turno ya publicado, lo verá el vendedor)" : "Motivo del cambio (si lo mueves de día, lo verá el vendedor)"}
+                  </label>
+                  <input id={`cam-${s.id}`} name="motivo_cambio" maxLength={300} className="campo" />
+                </div>
+                <div className="sm:col-span-3 lg:col-span-4">
                   <button className="boton w-full sm:w-auto">{s.estado === "aprobada" ? "Guardar cambios" : "Aprobar"}</button>
                 </div>
               </form>
