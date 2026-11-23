@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { exigirRol } from "@/lib/auth";
+import { leerCompetencia, resumenCompetencia, type Competencia } from "@/lib/competencia";
 import { sql } from "@/lib/db";
 import { ahoraBogota, duracion, fechaCorta, horario } from "@/lib/formato";
 import { escapar, notificar } from "@/lib/notificar";
@@ -120,10 +121,16 @@ export async function enviarReporteVentas(datos: FormData) {
     }
   }
 
+  const leida = leerCompetencia(datos);
+  if ("error" in leida) error(leida.error);
+  const { competencia } = leida as { competencia: Competencia };
+
   const observaciones = String(datos.get("observaciones") ?? "").trim() || null;
+  const publicidad = String(datos.get("publicidad") ?? "").trim().slice(0, 500) || null;
   const reporteId = randomUUID();
   await sql.transaction([
-    sql`INSERT INTO reportes_venta (id, turno_id, observaciones) VALUES (${reporteId}, ${turnoId}, ${observaciones})`,
+    sql`INSERT INTO reportes_venta (id, turno_id, observaciones, competencia, publicidad)
+      VALUES (${reporteId}, ${turnoId}, ${observaciones}, ${JSON.stringify(competencia)}::jsonb, ${publicidad})`,
     sql`INSERT INTO reporte_items (reporte_id, producto_item, cantidad)
       SELECT ${reporteId}::uuid, x.item, x.cantidad
       FROM jsonb_to_recordset(${JSON.stringify(items)}::jsonb) AS x(item int, cantidad int)`,
@@ -141,12 +148,13 @@ export async function enviarReporteVentas(datos: FormData) {
   const filasHtml = detalle.map((d) => `<tr><td>${escapar(d.descripcion)}</td><td align="right">${d.cantidad}</td></tr>`).join("");
   await notificar(destinatarios.map((d) => d.id), {
     titulo: `Ventas ${turno.lugar}: ${total} unidades`,
-    cuerpo: `${usuario.nombre} reportó ${total} unidades el ${fechaCorta(turno.inicio_txt)}, turno de ${horario(turno.inicio_txt, turno.fin_txt)}.`,
+    cuerpo: `${usuario.nombre} reportó ${total} unidades el ${fechaCorta(turno.inicio_txt)}, turno de ${horario(turno.inicio_txt, turno.fin_txt)}. ${resumenCompetencia(competencia)}`,
     enlace: "/reportes",
     correo: true,
-    detalleHtml: detalle.length
-      ? `<table cellpadding="4"><tr><th align="left">Producto</th><th>Unidades</th></tr>${filasHtml}</table>`
-      : "",
+    detalleHtml:
+      (detalle.length ? `<table cellpadding="4"><tr><th align="left">Producto</th><th>Unidades</th></tr>${filasHtml}</table>` : "") +
+      `<p>${escapar(resumenCompetencia(competencia))}</p>` +
+      (publicidad ? `<p>Publicidad del establecimiento: ${escapar(publicidad)}</p>` : ""),
   });
 
   revalidatePath(destino);

@@ -218,3 +218,7 @@ UPDATE marcas SET nombre = 'Cheers, crema de ron' WHERE codigo = 'CHEERS' AND no
 -- Perfil de supervisión (solo lectura) para la gerencia.
 ALTER TABLE usuarios DROP CONSTRAINT IF EXISTS usuarios_rol_check;
 ALTER TABLE usuarios ADD CONSTRAINT usuarios_rol_check CHECK (rol IN ('admin','trade','vendedor','impulsadora','lider_canal','director','supervisor'));
+
+-- Competencia y publicidad del establecimiento en el reporte de ventas (noviembre 2026). Columnas nuevas y vacías: no cambian datos existentes.
+ALTER TABLE reportes_venta ADD COLUMN IF NOT EXISTS competencia jsonb;
+ALTER TABLE reportes_venta ADD COLUMN IF NOT EXISTS publicidad text;

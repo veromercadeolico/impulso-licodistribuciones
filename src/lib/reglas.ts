@@ -6,6 +6,8 @@ export const RADIO_PUNTO_M = 200;
 export const META_CUMPLIMIENTO = 0.8;
 /** Parte del turno programado que debe trabajarse para que cuente como cumplido. */
 export const PORCENTAJE_TIEMPO_MINIMO = 0.75;
+/** Días hacia atrás en los que un turno terminado sin reporte de ventas genera alerta. */
+export const DIAS_ALERTA_REPORTE = 7;
 
 export type Franja = "tarde" | "noche";
 export type CodigoAlerta = "DURACION" | "DESCANSO" | "CRUCE" | "NO_DISPONIBLE" | "DESPLAZAMIENTO";

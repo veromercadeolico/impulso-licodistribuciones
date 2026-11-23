@@ -4,7 +4,7 @@ import { exigirRol } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { fechaCorta, hora, PRIORIDADES } from "@/lib/formato";
 import { periodoSeleccionado } from "@/lib/periodos";
-import { franjaDe, ordenarSolicitudes, sumarMinutos, type Alerta } from "@/lib/reglas";
+import { DIAS_ALERTA_REPORTE, franjaDe, ordenarSolicitudes, sumarMinutos, type Alerta } from "@/lib/reglas";
 import {
   actualizarLimite,
   aprobarSinAlertas,
@@ -42,6 +42,14 @@ export default async function ProgramacionPage({ searchParams }: { searchParams:
         (SELECT count(*)::int FROM turnos t WHERE t.canal = c.codigo AND t.periodo_id = ${actual.id} AND NOT t.cancelado) AS turnos
       FROM canales c ORDER BY c.orden`,
   ]);
+  const sinReporte = await sql`SELECT t.id, t.inicio::text, i.nombre AS impulsadora, p.nombre AS lugar,
+      EXISTS (SELECT 1 FROM asistencias a WHERE a.turno_id = t.id AND a.tipo = 'salida') AS salida
+    FROM turnos t JOIN usuarios i ON i.id = t.impulsadora_id JOIN puntos p ON p.id = t.punto_id
+    WHERE t.publicado AND NOT t.cancelado
+      AND t.fin <= (now() AT TIME ZONE 'America/Bogota')
+      AND t.fin >= (now() AT TIME ZONE 'America/Bogota')::date - ${DIAS_ALERTA_REPORTE}::int
+      AND NOT EXISTS (SELECT 1 FROM reportes_venta r WHERE r.turno_id = t.id)
+    ORDER BY t.inicio DESC`;
 
   const disponibles = new Set(disponibilidad.map((d) => `${d.impulsadora_id}|${d.fecha}|${d.franja}`));
   const orden = ordenarSolicitudes(
@@ -60,6 +68,22 @@ export default async function ProgramacionPage({ searchParams }: { searchParams:
       </Encabezado>
       <PestanasProgramacion periodo={actual.id} activa="solicitudes" soloLectura={soloLectura} />
       <Avisos ok={sp.ok} error={sp.s ? undefined : sp.error} />
+      {sinReporte.length > 0 && (
+        <details className="mb-4 rounded-lg bg-error-claro px-3 py-2 text-sm text-error">
+          <summary className="cursor-pointer font-semibold">
+            {sinReporte.length === 1 ? "1 turno terminado sin reporte de ventas" : `${sinReporte.length} turnos terminados sin reporte de ventas`}
+            {` en los últimos ${DIAS_ALERTA_REPORTE} días. Ver cuáles`}
+          </summary>
+          <ul className="mt-2 space-y-1">
+            {sinReporte.map((t) => (
+              <li key={t.id}>
+                {t.impulsadora} · {t.lugar} · {fechaCorta(t.inicio)}, {hora(t.inicio)}
+                {!t.salida && " · sin salida registrada"}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
       {sinCedula > 0 && (
         <p className="mb-4 rounded-lg bg-alerta-claro px-3 py-2 text-sm text-alerta">
           {sinCedula} impulsadoras aún no tienen cédula registrada y no podrán entrar a la app.

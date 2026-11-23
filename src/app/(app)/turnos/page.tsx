@@ -3,7 +3,8 @@ import { Encabezado, EtiquetaPortada, Portada, Vacio } from "@/components/ui";
 import { Icono } from "@/components/iconos";
 import { exigirRol } from "@/lib/auth";
 import { sql } from "@/lib/db";
-import { ahoraBogota, fechaLarga, horario } from "@/lib/formato";
+import { ahoraBogota, fechaLarga, horario, sumarDias } from "@/lib/formato";
+import { DIAS_ALERTA_REPORTE } from "@/lib/reglas";
 
 function Paso({ hecho, texto }: { hecho: boolean; texto: string }) {
   return (
@@ -26,6 +27,8 @@ export default async function TurnosPage() {
   const ahora = ahoraBogota();
   const proximos = turnos.filter((t) => !t.ventas && t.fin.slice(0, 10) >= ahora.slice(0, 10)).reverse();
   const anteriores = turnos.filter((t) => !proximos.includes(t));
+  const desde = sumarDias(ahora, -DIAS_ALERTA_REPORTE);
+  const sinReporte = turnos.filter((t) => !t.ventas && t.fin.slice(0, 16) <= ahora && t.fin.slice(0, 10) >= desde).reverse();
 
   const Ficha = ({ t }: { t: (typeof turnos)[number] }) => (
     <li>
@@ -48,6 +51,24 @@ export default async function TurnosPage() {
   return (
     <>
       <Encabezado titulo={`Hola, ${usuario.nombre.split(" ")[0]}`} detalle="Estos son tus turnos de impulso." />
+      {sinReporte.length > 0 && (
+        <div role="alert" className="mb-8 rounded-xl border border-error bg-error-claro px-4 py-3 text-error">
+          <p className="flex items-center gap-2 font-semibold">
+            <Icono nombre="campana" className="size-5 shrink-0" />
+            {sinReporte.length === 1 ? "Tienes 1 reporte de ventas sin enviar" : `Tienes ${sinReporte.length} reportes de ventas sin enviar`}
+          </p>
+          <ul className="mt-2 space-y-1 text-sm">
+            {sinReporte.map((t) => (
+              <li key={t.id}>
+                <Link href={`/turnos/${t.id}`} className="font-semibold underline underline-offset-2">
+                  {t.lugar} · {fechaLarga(t.inicio)}
+                </Link>
+                {!t.salida && " · primero registra tu salida"}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <h2 className="mb-4 titulo text-lg">Próximos turnos</h2>
       {proximos.length === 0 && <Vacio>No tienes turnos pendientes.</Vacio>}
       <ul className={rejilla}>{proximos.map((t) => <Ficha key={t.id} t={t} />)}</ul>
