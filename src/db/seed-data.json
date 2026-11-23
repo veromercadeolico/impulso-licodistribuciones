@@ -1,0 +1,482 @@
+{
+ "productos": [
+  {
+   "item": 2,
+   "referencia": "1110",
+   "ean": "7702168114003",
+   "descripcion": "AGUARDIENTE. CRISTAL 375 ML",
+   "ml": 375,
+   "marca": "CRISTAL",
+   "unidades_caja": 24
+  },
+  {
+   "item": 3,
+   "referencia": "1120",
+   "ean": "7702168117004",
+   "descripcion": "AGUARDIENTE. CRISTAL 750 ML",
+   "ml": 750,
+   "marca": "CRISTAL",
+   "unidades_caja": 12
+  },
+  {
+   "item": 4,
+   "referencia": "1128",
+   "ean": "7702168118209",
+   "descripcion": "AGUARDIENTE. CRISTAL 1.000 ML TETRA BRIK",
+   "ml": 1000,
+   "marca": "CRISTAL",
+   "unidades_caja": 12
+  },
+  {
+   "item": 5,
+   "referencia": "1151",
+   "ean": "7702168119008",
+   "descripcion": "AGUARDIENTE. CRISTAL 1.750 ML",
+   "ml": 1750,
+   "marca": "CRISTAL",
+   "unidades_caja": 6
+  },
+  {
+   "item": 12,
+   "referencia": "1422",
+   "ean": "7702168116250",
+   "descripcion": "AGUARDIENTE CRISTAL XS 375ML PET",
+   "ml": 375,
+   "marca": "CRISTAL",
+   "unidades_caja": 24
+  },
+  {
+   "item": 13,
+   "referencia": "1410",
+   "ean": "7702168114409",
+   "descripcion": "AGUARDIENTE CRISTAL XS 375ML",
+   "ml": 375,
+   "marca": "CRISTAL",
+   "unidades_caja": 24
+  },
+  {
+   "item": 14,
+   "referencia": "1420",
+   "ean": "7702168117400",
+   "descripcion": "AGUARDIENTE CRISTAL XS 750ML",
+   "ml": 750,
+   "marca": "CRISTAL",
+   "unidades_caja": 12
+  },
+  {
+   "item": 15,
+   "referencia": "1430",
+   "ean": "7702168118407",
+   "descripcion": "AGUARDIENTE CRISTAL XS 1000 ML VIDRIO",
+   "ml": 1000,
+   "marca": "CRISTAL",
+   "unidades_caja": 12
+  },
+  {
+   "item": 19,
+   "referencia": "5008",
+   "ean": "7702168213508",
+   "descripcion": "RON VIEJO DE CALDAS 250 ML TETRA BRIK",
+   "ml": 250,
+   "marca": "RON VIEJO DE CALDAS",
+   "unidades_caja": 24
+  },
+  {
+   "item": 20,
+   "referencia": "3212",
+   "ean": "7702168216004",
+   "descripcion": "RON VIEJO DE CALDAS 375 ML PET",
+   "ml": 375,
+   "marca": "RON VIEJO DE CALDAS",
+   "unidades_caja": 24
+  },
+  {
+   "item": 21,
+   "referencia": "3010",
+   "ean": "7702168214000",
+   "descripcion": "RON VIEJO CALDAS 375 ML",
+   "ml": 375,
+   "marca": "RON VIEJO DE CALDAS",
+   "unidades_caja": 24
+  },
+  {
+   "item": 22,
+   "referencia": "3020",
+   "ean": "7702168217308",
+   "descripcion": "RON VIEJO CALDAS 750 ML",
+   "ml": 750,
+   "marca": "RON VIEJO DE CALDAS",
+   "unidades_caja": 12
+  },
+  {
+   "item": 23,
+   "referencia": "3028",
+   "ean": "7702168218206",
+   "descripcion": "RON VIEJO DE CALDAS 1.000 ML TETRA BRIK",
+   "ml": 1000,
+   "marca": "RON VIEJO DE CALDAS",
+   "unidades_caja": 12
+  },
+  {
+   "item": 24,
+   "referencia": "3030",
+   "ean": "7702168218305",
+   "descripcion": "RON VIEJO DE CALDAS 1.000 ML VIDRIO",
+   "ml": 1000,
+   "marca": "RON VIEJO DE CALDAS",
+   "unidades_caja": 12
+  },
+  {
+   "item": 25,
+   "referencia": "3051",
+   "ean": "7702168219005",
+   "descripcion": "RON VIEJO DE CALDAS 1.750 ML",
+   "ml": 1750,
+   "marca": "RON VIEJO DE CALDAS",
+   "unidades_caja": 6
+  },
+  {
+   "item": 28,
+   "referencia": "3515",
+   "ean": "7702168627046",
+   "descripcion": "RON VIEJO DE CALDAS 8 AÑOS 375 ML",
+   "ml": 375,
+   "marca": "RON VIEJO DE CALDAS",
+   "unidades_caja": 24
+  },
+  {
+   "item": 30,
+   "referencia": "3434",
+   "ean": "7702168268508",
+   "descripcion": "RON VIEJO DE CALDAS G.RESERVA 15A 750 ML",
+   "ml": 750,
+   "marca": "RON VIEJO DE CALDAS",
+   "unidades_caja": 12
+  },
+  {
+   "item": 31,
+   "referencia": "3535",
+   "ean": "7702168007930",
+   "descripcion": "RON VIEJO DE CALDAS L.DORMIDO 21A 750 ML",
+   "ml": 750,
+   "marca": "RON VIEJO DE CALDAS",
+   "unidades_caja": 12
+  },
+  {
+   "item": 35,
+   "referencia": "1508",
+   "ean": "7702168113303",
+   "descripcion": "AG CRISTAL SIN AZU TETRA X 250",
+   "ml": 250,
+   "marca": "CRISTAL",
+   "unidades_caja": 24
+  },
+  {
+   "item": 41,
+   "referencia": "XS50",
+   "ean": "7702168117332",
+   "descripcion": "AGUARDIENTE CRISTAL XS 50 ML",
+   "ml": 50,
+   "marca": "CRISTAL",
+   "unidades_caja": 120
+  },
+  {
+   "item": 64,
+   "referencia": "L750",
+   "ean": "7702168123401",
+   "descripcion": "AGUARDIENTE CRISTAL L750ML",
+   "ml": 750,
+   "marca": "CRISTAL",
+   "unidades_caja": 12
+  },
+  {
+   "item": 65,
+   "referencia": "S375",
+   "ean": "7702168123159",
+   "descripcion": "AGUARDIENTE CRISTAL S375ML",
+   "ml": 375,
+   "marca": "CRISTAL",
+   "unidades_caja": 24
+  },
+  {
+   "item": 66,
+   "referencia": "S750",
+   "ean": "7702168123203",
+   "descripcion": "AGUARDIENTE CRISTAL S750ML",
+   "ml": 750,
+   "marca": "CRISTAL",
+   "unidades_caja": 12
+  },
+  {
+   "item": 67,
+   "referencia": "L375",
+   "ean": "7702168123357",
+   "descripcion": "AGUARDIENTE CRISTAL L375ML",
+   "ml": 375,
+   "marca": "CRISTAL",
+   "unidades_caja": 24
+  },
+  {
+   "item": 74,
+   "referencia": "XST1000",
+   "ean": "7702168118308",
+   "descripcion": "AGUARDIENTE CRISTAL XS 1000 ML TETRA",
+   "ml": 1000,
+   "marca": "CRISTAL",
+   "unidades_caja": 12
+  },
+  {
+   "item": 75,
+   "referencia": "RVC50",
+   "ean": "7702168211504",
+   "descripcion": "RON VIEJO DE CALDAS 50 ML",
+   "ml": 50,
+   "marca": "RON VIEJO DE CALDAS",
+   "unidades_caja": 120
+  },
+  {
+   "item": 79,
+   "referencia": "3013J",
+   "ean": "7702168239201",
+   "descripcion": "RVC  5 JUAN DE LA CRUZ 750 ML",
+   "ml": 750,
+   "marca": "RON VIEJO DE CALDAS",
+   "unidades_caja": 12
+  },
+  {
+   "item": 80,
+   "referencia": "1327G",
+   "ean": "7702168117509",
+   "descripcion": "AGUARDIENTE CRISTAL SA GRIS 750 VIDRIO",
+   "ml": 750,
+   "marca": "CRISTAL",
+   "unidades_caja": 12
+  },
+  {
+   "item": 86,
+   "referencia": "3513J",
+   "ean": "7702168239102",
+   "descripcion": "RVC 5 JUAN DE LA CRUZ 375 ML",
+   "ml": 375,
+   "marca": "RON VIEJO DE CALDAS",
+   "unidades_caja": 24
+  },
+  {
+   "item": 92,
+   "referencia": "RVCRB",
+   "ean": "7702168997156",
+   "descripcion": "RON VIEJO DE CALDAS ROBLE BLANCO 750",
+   "ml": 750,
+   "marca": "RON VIEJO DE CALDAS",
+   "unidades_caja": 12
+  },
+  {
+   "item": 98,
+   "referencia": "AM375",
+   "ean": "7702168594300",
+   "descripcion": "AGUARDIENTE AMARILLO 375 ML 24 GRADOS",
+   "ml": 375,
+   "marca": "AMARILLO DE MANZANARES",
+   "unidades_caja": 24
+  },
+  {
+   "item": 99,
+   "referencia": "AM750",
+   "ean": "7702168278477",
+   "descripcion": "AGUARDIENTE AMARILLO 750 ML 24 GRADOS",
+   "ml": 750,
+   "marca": "AMARILLO DE MANZANARES",
+   "unidades_caja": 12
+  },
+  {
+   "item": 100,
+   "referencia": "AM50",
+   "ean": "7702168315196",
+   "descripcion": "AGUARDIENTE AMARILLO 50ML SHOTS",
+   "ml": 50,
+   "marca": "AMARILLO DE MANZANARES",
+   "unidades_caja": 120
+  },
+  {
+   "item": 101,
+   "referencia": "CH700",
+   "ean": "7702168247732",
+   "descripcion": "CREMA DE RVC CHEERS 700 ML 15.1  GRADOS",
+   "ml": 700,
+   "marca": "CHEERS",
+   "unidades_caja": 12
+  },
+  {
+   "item": 104,
+   "referencia": "RVCRB50",
+   "ean": "7702168975246",
+   "descripcion": "RON VIEJO CALDAS ROBLE BLANCO 50ML SHOT",
+   "ml": 50,
+   "marca": "RON VIEJO DE CALDAS",
+   "unidades_caja": 120
+  },
+  {
+   "item": 105,
+   "referencia": "3015AS",
+   "ean": "7702168594737",
+   "descripcion": "RON VIEJO DE CALDAS 8 CARTA DE ORO 750",
+   "ml": 750,
+   "marca": "RON VIEJO DE CALDAS",
+   "unidades_caja": 12
+  },
+  {
+   "item": 109,
+   "referencia": "GIN700",
+   "ean": "7702168456882",
+   "descripcion": "GIN BOSQUE DE INDIAS 700 V 37.5",
+   "ml": 700,
+   "marca": "BOSQUE DE INDIAS",
+   "unidades_caja": 12
+  },
+  {
+   "item": 110,
+   "referencia": "RVC2000",
+   "ean": "7702168778366",
+   "descripcion": "RON BARRILITO",
+   "ml": 2000,
+   "marca": "RON VIEJO DE CALDAS",
+   "unidades_caja": 6
+  },
+  {
+   "item": 159,
+   "referencia": "AM1000",
+   "ean": "7702168420135",
+   "descripcion": "AGUARDIENTE AMARILLO TETRA 1000 ML 24G",
+   "ml": 1000,
+   "marca": "AMARILLO DE MANZANARES",
+   "unidades_caja": 12
+  },
+  {
+   "item": 162,
+   "referencia": "LRVC375",
+   "ean": "7702168725254",
+   "descripcion": "LICOR DE RVC ESENCIAL 375 VIDRIO 29°",
+   "ml": 375,
+   "marca": "RON VIEJO DE CALDAS",
+   "unidades_caja": 24
+  },
+  {
+   "item": 163,
+   "referencia": "LRVC750",
+   "ean": "7702168364231",
+   "descripcion": "LICOR DE RVC ESENCIAL 750 VIDRIO 29°",
+   "ml": 750,
+   "marca": "RON VIEJO DE CALDAS",
+   "unidades_caja": 12
+  },
+  {
+   "item": 164,
+   "referencia": "GIN295",
+   "ean": "7702168694833",
+   "descripcion": "GIN TONIC BOSQUE DE INDIAS (LATA)",
+   "ml": 295,
+   "marca": "GIN TONIC",
+   "unidades_caja": 24
+  },
+  {
+   "item": 165,
+   "referencia": "CUBA295",
+   "ean": "7702168866490",
+   "descripcion": "CUBA LIBRE RON VIEJO DE CALDAS (LATA)",
+   "ml": 295,
+   "marca": "CUBA LIBRE",
+   "unidades_caja": 24
+  },
+  {
+   "item": 166,
+   "referencia": "MOJ295",
+   "ean": "7702168893885",
+   "descripcion": "MOJITO RON VIEJO DE CALDAS (LATA)",
+   "ml": 295,
+   "marca": "MOJITO",
+   "unidades_caja": 24
+  },
+  {
+   "item": 180,
+   "referencia": "DAQ295",
+   "ean": "7702168439847",
+   "descripcion": "COCTEL DAIQUIRI 295 LATA",
+   "ml": 295,
+   "marca": "DAIQUIRI",
+   "unidades_caja": 24
+  },
+  {
+   "item": 184,
+   "referencia": "AM1000V",
+   "ean": "7702168884944",
+   "descripcion": "AGUARDIENTE AMARILLO 1000 24 G VIDRIO",
+   "ml": 1000,
+   "marca": "AMARILLO DE MANZANARES",
+   "unidades_caja": 12
+  },
+  {
+   "item": 185,
+   "referencia": "AM1500",
+   "ean": "7702168537581",
+   "descripcion": "AGUARDIENTE AMARILLO 1500 24G GARRAFA",
+   "ml": 1500,
+   "marca": "AMARILLO DE MANZANARES",
+   "unidades_caja": 6
+  },
+  {
+   "item": 186,
+   "referencia": "RVCOS",
+   "ean": "7702168729238",
+   "descripcion": "RON VIEJO DE CALDAS OSCURO",
+   "ml": 750,
+   "marca": "RON VIEJO DE CALDAS",
+   "unidades_caja": 12
+  },
+  {
+   "item": 189,
+   "referencia": "LRVC1000V",
+   "ean": "7702168570755",
+   "descripcion": "LICOR DE RVC ESENCIAL (VIDRIO)",
+   "ml": 1000,
+   "marca": "RON VIEJO DE CALDAS",
+   "unidades_caja": 12
+  },
+  {
+   "item": 190,
+   "referencia": "LRVC1750",
+   "ean": "7702168421576",
+   "descripcion": "LICOR DE RVC ESENCIAL (GARRAFA)",
+   "ml": 1750,
+   "marca": "RON VIEJO DE CALDAS",
+   "unidades_caja": 6
+  },
+  {
+   "item": 192,
+   "referencia": "LRVC1000T",
+   "ean": "7702168411867",
+   "descripcion": "LICOR DE RVC ESENCIAL 1000 TETRAPAK 29°",
+   "ml": 1000,
+   "marca": "RON VIEJO DE CALDAS",
+   "unidades_caja": 12
+  },
+  {
+   "item": 213,
+   "referencia": "None",
+   "ean": "7702168457841",
+   "descripcion": "MULE AGUARDIENTE AMARILLO (LATA)",
+   "ml": 269,
+   "marca": "COCTEL DE AMARILLO",
+   "unidades_caja": 12
+  },
+  {
+   "item": 214,
+   "referencia": "None",
+   "ean": "7702168498097",
+   "descripcion": "MARACUYA AGUARDIENTE AMARILLO (LATA)",
+   "ml": 269,
+   "marca": "COCTEL DE AMARILLO",
+   "unidades_caja": 12
+  }
+ ],
+ "impulsadoras": []
+}

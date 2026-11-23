@@ -1,0 +1,21 @@
+node_modules/
+.next/
+out/
+build/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+npm-debug.log*
+.DS_Store
+
+# Variables de entorno: nunca se suben. Solo la plantilla .env.example.
+.env*
+!.env.example
+
+# Archivos locales de herramientas
+.vercel
+.claude/
+.playwright-mcp/
+
+# Documentos ajenos a la app que puedan quedar en la carpeta
+*-transcripcion.md

@@ -1,0 +1,100 @@
+"use client";
+
+import { useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { registrarAsistencia } from "@/app/(app)/turnos/acciones";
+
+const LADO_MAXIMO = 1280;
+
+async function comprimir(archivo: File): Promise<string> {
+  const imagen = await createImageBitmap(archivo);
+  const escala = Math.min(1, LADO_MAXIMO / Math.max(imagen.width, imagen.height));
+  const lienzo = document.createElement("canvas");
+  lienzo.width = Math.round(imagen.width * escala);
+  lienzo.height = Math.round(imagen.height * escala);
+  lienzo.getContext("2d")!.drawImage(imagen, 0, 0, lienzo.width, lienzo.height);
+  return lienzo.toDataURL("image/jpeg", 0.72);
+}
+
+function ubicar(): Promise<GeolocationPosition> {
+  return new Promise((ok, mal) =>
+    navigator.geolocation
+      ? navigator.geolocation.getCurrentPosition(ok, mal, { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 })
+      : mal(new Error("sin geolocalización")),
+  );
+}
+
+export function RegistroAsistencia({ turnoId, tipo }: { turnoId: string; tipo: "entrada" | "salida" }) {
+  const router = useRouter();
+  const entrada = useRef<HTMLInputElement>(null);
+  const [foto, setFoto] = useState<string | null>(null);
+  const [mensaje, setMensaje] = useState("");
+  const [enviando, iniciar] = useTransition();
+  const nombre = tipo === "entrada" ? "entrada" : "salida";
+
+  async function elegir(e: React.ChangeEvent<HTMLInputElement>) {
+    const archivo = e.target.files?.[0];
+    if (!archivo) return;
+    setMensaje("");
+    try {
+      setFoto(await comprimir(archivo));
+    } catch {
+      setMensaje("No se pudo leer la foto. Tómala de nuevo.");
+    }
+  }
+
+  function enviar() {
+    if (!foto) return;
+    iniciar(async () => {
+      setMensaje("Obteniendo tu ubicación…");
+      let posicion: GeolocationPosition;
+      try {
+        posicion = await ubicar();
+      } catch {
+        setMensaje("Activa la ubicación del celular y permite el acceso para registrar tu " + nombre + ".");
+        return;
+      }
+      setMensaje("Enviando…");
+      const r = await registrarAsistencia({
+        turnoId,
+        tipo,
+        fotoBase64: foto.split(",")[1],
+        lat: posicion.coords.latitude,
+        lng: posicion.coords.longitude,
+      });
+      if (r.error) return setMensaje(r.error);
+      setMensaje("");
+      setFoto(null);
+      router.refresh();
+    });
+  }
+
+  return (
+    <div>
+      <input
+        ref={entrada}
+        type="file"
+        accept="image/*"
+        capture="user"
+        onChange={elegir}
+        className="sr-only"
+        aria-label={`Foto de ${nombre}`}
+      />
+      {foto ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={foto} alt={`Vista previa de la foto de ${nombre}`} className="mb-3 max-h-64 w-full rounded-lg object-contain" />
+      ) : null}
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <button type="button" onClick={() => entrada.current?.click()} className={foto ? "boton-sec" : "boton"}>
+          {foto ? "Tomar otra foto" : `Tomar foto de ${nombre}`}
+        </button>
+        {foto && (
+          <button type="button" onClick={enviar} disabled={enviando} className="boton">
+            {enviando ? "Registrando…" : `Registrar ${nombre}`}
+          </button>
+        )}
+      </div>
+      <p aria-live="polite" className="mt-2 text-sm text-error empty:hidden">{mensaje}</p>
+    </div>
+  );
+}

@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guía Impulso | Lico Distribuciones</title>
+<meta name="description" content="Cómo funciona la app de impulso de Lico Distribuciones, accesos por rol y formulario de comentarios.">
+<link rel="icon" href="https://impulso-licodistribuciones.vercel.app/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Marcellus&display=swap" rel="stylesheet">
+<style>
+:root{--azul:#0a142d;--naranja:#cc521b;--crema:#ede4d9;--vino:#90574d;--arena:#ccbba7;--cielo:#94b6ef;--blanco:#fff;--suave:#4f566a;--linea:#ddd0c1;--claro:#f6f1ea;--ok:#1f6b45;--ok-claro:#e3efe6;--error:#a32c17;--error-claro:#f9e4dd;color-scheme:light}
+*{box-sizing:border-box}html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--crema);color:var(--azul);font-family:"Hanken Grotesk","Segoe UI",system-ui,sans-serif;font-size:16px;line-height:1.6}
+a{color:inherit}img{max-width:100%}
+h1,h2,h3.t{font-family:Marcellus,Georgia,serif;font-weight:400;text-transform:uppercase;letter-spacing:.09em;line-height:1.25;margin:0}
+h2{font-size:clamp(22px,4vw,30px)}p{margin:0}
+.c{width:min(1080px,100%);margin:0 auto;padding:0 20px}
+section{padding:64px 0;scroll-margin-top:64px}.intro{max-width:680px;margin-top:10px;color:var(--suave);font-size:17px}
+nav.top{position:sticky;top:0;z-index:5;background:var(--azul);color:var(--crema)}
+nav.top .c{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:60px}
+nav.top b{font-family:Marcellus,Georgia,serif;font-weight:400;letter-spacing:.12em;text-transform:uppercase;font-size:14px;white-space:nowrap}
+nav.top ul{display:flex;gap:22px;list-style:none;margin:0;padding:0;font-size:14px}nav.top ul a{text-decoration:none;opacity:.8}nav.top ul a:hover{opacity:1}
+.hero{background:var(--azul) url("https://impulso-licodistribuciones.vercel.app/marca/patron-claro.svg");color:var(--crema);padding:56px 0}
+.marco{background:var(--crema);color:var(--azul);padding:10px;max-width:760px;margin:0 auto}
+.marco>div{border:1px solid var(--arena);padding:36px 28px;text-align:center}
+.marco img{width:150px;height:150px}.hero h1{font-size:clamp(26px,5vw,40px);margin-top:18px}
+.hero p{margin:14px auto 0;max-width:540px;color:var(--suave);font-size:17px}
+.acciones{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:24px}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:10px 20px;border-radius:4px;border:1px solid var(--azul);background:var(--azul);color:var(--crema);font:600 15px "Hanken Grotesk",sans-serif;text-decoration:none;cursor:pointer}
+.btn:hover{background:#1b2a50}.btn.sec{background:transparent;color:var(--azul)}.btn.sec:hover{background:var(--azul);color:var(--crema)}
+.pasos{list-style:none;margin:32px 0 0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;counter-reset:p}
+.pasos li{background:var(--blanco);border:1px solid var(--linea);border-radius:8px;padding:20px;counter-increment:p;position:relative;overflow:hidden}
+.pasos li::before{content:counter(p);display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:var(--azul);color:var(--crema);font-weight:700;margin-bottom:12px}
+.pasos h3{margin:0;font-size:17px}.quien{display:inline-block;margin:4px 0 8px;font-size:13px;font-weight:600;color:#8f3a10}.pasos p{font-size:15px;color:var(--suave)}
+.fondo{background:var(--blanco)}
+.aviso{display:flex;gap:12px;background:var(--claro);border-left:3px solid var(--naranja);padding:14px 16px;margin-top:24px;font-size:15px}
+.tabs{display:flex;gap:6px;margin-top:28px;overflow-x:auto;border-bottom:1px solid var(--linea);scrollbar-width:none}
+.tabs button{flex:none;background:none;border:0;border-bottom:2px solid transparent;padding:12px 10px;font:600 15px "Hanken Grotesk",sans-serif;color:var(--suave);cursor:pointer}
+.tabs button[aria-selected=true]{color:var(--azul);border-color:var(--naranja)}
+.panel{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:32px;padding-top:28px}
+.panel h3.t{font-size:20px}.panel .rep{color:var(--suave);font-size:14px;margin-top:4px}.panel>div>p.d{margin-top:12px}
+.panel h4{margin:22px 0 8px;font-size:15px}.lista{margin:0;padding:0;list-style:none}
+.lista li{position:relative;padding:6px 0 6px 30px;font-size:15px}.lista li::before{content:"";position:absolute;left:0;top:9px;width:18px;height:18px;border:1.5px solid var(--naranja);border-radius:3px}
+.acceso{background:var(--azul);color:var(--crema);border-radius:8px;padding:22px;align-self:start}
+.acceso small{display:block;font-size:13px;opacity:.8}.cuenta{padding:12px 0;border-bottom:1px solid rgba(237,228,217,.2)}.cuenta:last-of-type{border:0}
+.ced{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:21px;font-weight:700;letter-spacing:.04em}
+.copiar{background:none;color:var(--crema);border:1px solid rgba(237,228,217,.45);border-radius:4px;min-height:34px;padding:4px 10px;font:600 13px "Hanken Grotesk",sans-serif;cursor:pointer}
+.entrar{display:flex;align-items:center;justify-content:center;min-height:44px;margin-top:10px;background:var(--crema);color:var(--azul);border-radius:4px;font-weight:700;text-decoration:none;font-size:15px}
+.entrar:hover{background:var(--blanco)}
+.tabla{overflow-x:auto;margin-top:28px;background:var(--blanco);border:1px solid var(--linea);border-radius:8px}
+table{width:100%;border-collapse:collapse;font-size:15px;min-width:560px}th,td{text-align:left;padding:13px 16px;border-bottom:1px solid var(--linea);vertical-align:top}th{font-size:13px;color:var(--suave)}tr:last-child td{border-bottom:0}td:first-child{font-weight:600;width:32%}
+.dos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:28px}.caja{background:var(--blanco);border:1px solid var(--linea);border-radius:8px;padding:20px}.caja h3{margin:0 0 6px;font-size:17px}.caja p{font-size:15px;color:var(--suave)}
+form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:28px;background:var(--blanco);border:1px solid var(--linea);border-radius:8px;padding:24px}
+label{display:block;font-size:14px;font-weight:600;margin-bottom:6px}.full{grid-column:1/-1}
+input,select,textarea{width:100%;min-height:46px;border:1px solid #8c8378;border-radius:4px;background:#fff;color:var(--azul);padding:10px 12px;font:16px "Hanken Grotesk",sans-serif}
+textarea{min-height:130px;resize:vertical}input:focus,select:focus,textarea:focus,button:focus-visible,a:focus-visible{outline:2px solid var(--naranja);outline-offset:1px}
+.trampa{position:absolute;left:-9999px}#estado{font-size:15px;font-weight:600;align-self:center}#estado.ok{color:var(--ok)}#estado.mal{color:var(--error)}
+footer{background:var(--azul);color:var(--crema);text-align:center;padding:32px 20px;font-family:Marcellus,Georgia,serif;letter-spacing:.12em;text-transform:uppercase;font-size:13px}
+@media(max-width:860px){nav.top ul{display:none}.pasos{grid-template-columns:repeat(2,minmax(0,1fr))}.panel{grid-template-columns:minmax(0,1fr)}.acceso{order:-1}}
+@media(max-width:560px){section{padding:46px 0}.pasos,.dos,form{grid-template-columns:minmax(0,1fr)}.hero{padding:24px 0}.marco>div{padding:26px 16px}.btn{width:100%}}
+</style>
+</head>
+<body>
+<nav class="top" aria-label="Secciones"><div class="c"><b>Impulso</b><ul><li><a href="#flujo">Cómo funciona</a></li><li><a href="#roles">Accesos</a></li><li><a href="#reglas">Reglas</a></li><li><a href="#comentarios">Comentarios</a></li></ul></div></nav>
+
+<header class="hero"><div class="c"><div class="marco"><div>
+<img src="https://impulso-licodistribuciones.vercel.app/marca/sello.svg" alt="Lico Distribuciones, tradición y excelencia">
+<h1>Guía de la app de impulso</h1>
+<p>Una sola herramienta para solicitar, programar, ejecutar y medir cada activación. Explórala con tu rol y cuéntanos qué mejorar.</p>
+<div class="acciones"><a class="btn" href="#roles">Elegir mi rol</a><a class="btn sec" href="#comentarios">Dejar un comentario</a></div>
+</div></div></div></header>
+
+<main>
+<section id="flujo"><div class="c">
+<h2>Cómo funciona</h2>
+<p class="intro">La app reemplaza los archivos y formularios separados. Cada activación pasa por seis momentos y cada persona ve solo lo que le corresponde.</p>
+<ol class="pasos">
+<li><h3>Solicitud</h3><span class="quien">Vendedor</span><p>Registra fecha, hora, marca, lugar, relevancia y notas. La fecha de envío se guarda sola.</p></li>
+<li><h3>Programación</h3><span class="quien">Trade Marketing</span><p>Marca quién está disponible y la app propone las impulsadoras según relevancia, ciudad y descansos.</p></li>
+<li><h3>Publicación</h3><span class="quien">Trade Marketing</span><p>Aprueba o rechaza cada solicitud, asigna la degustación y publica la semana para todos.</p></li>
+<li><h3>Asistencia</h3><span class="quien">Impulsadora</span><p>Registra entrada y salida con foto, hora y ubicación. La app calcula el tiempo trabajado.</p></li>
+<li><h3>Ventas</h3><span class="quien">Impulsadora</span><p>Al terminar reporta las unidades vendidas y la degustación usada. El reporte avisa a vendedor y líderes.</p></li>
+<li><h3>Resultados</h3><span class="quien">Líderes y dirección</span><p>Cada rol consulta su propio reporte, con las métricas y los términos que ya usa.</p></li>
+</ol>
+</div></section>
+
+<section id="roles" class="fondo"><div class="c">
+<h2>Explora con tu rol</h2>
+<p class="intro">Elige un rol, entra con el botón y sigue la lista de pruebas. Puedes cambiar de rol cuando quieras abriendo el acceso de otro.</p>
+<div class="aviso"><span><strong>Importante:</strong> los reportes abren en la semana actual. Para ver resultados, cambia el selector <strong>Periodo</strong> a la semana anterior.</span></div>
+<div class="tabs" role="tablist" aria-label="Roles" id="tabs"></div>
+<div id="panel" role="tabpanel" tabindex="0"></div>
+</div></section>
+
+<section id="reglas"><div class="c">
+<h2>Reglas que aplica la app</h2>
+<p class="intro">Estas reglas salen de la operación actual. Si alguna no coincide con la realidad, ese es justo el comentario que necesitamos.</p>
+<div class="tabla"><table>
+<thead><tr><th>Regla</th><th>Cómo funciona</th></tr></thead>
+<tbody>
+<tr><td>Duración del turno</td><td>4 horas. Si es diferente, la app alerta y Trade Marketing debe escribir el motivo.</td></tr>
+<tr><td>Descanso entre turnos</td><td>Mínimo 1 hora y 30 minutos para una misma impulsadora. También se puede aprobar con motivo.</td></tr>
+<tr><td>Orden de solicitudes</td><td>Primero la relevancia del vendedor. En empate gana la primera en llegar, y las que no tienen relevancia conservan su puesto de llegada.</td></tr>
+<tr><td>Fecha límite</td><td>Miércoles a las 12:00 PM antes del periodo. Después entran marcadas como extemporáneas.</td></tr>
+<tr><td>Uniforme</td><td>Lo define la marca a activar: AA, RVC o ESE.</td></tr>
+<tr><td>Ciudad</td><td>Se prefiere a quien vive en el municipio. Si debe viajar, la app lo avisa.</td></tr>
+<tr><td>Turno cumplido</td><td>Entrada y ventas reportadas, en el punto programado y con al menos 75 % del tiempo del turno.</td></tr>
+<tr><td>Punto correcto</td><td>La entrada debe registrarse a máximo 200 metros del punto, cuando este tiene ubicación guardada.</td></tr>
+<tr><td>Canales y meta semanal</td><td>Supermercados 20, Tienda a tienda 15, Consumo 35, Mayoristas 15, Activaciones y eventos 10, Fiestas patronales 5.</td></tr>
+</tbody></table></div>
+<div class="dos">
+<div class="caja"><h3>En esta demostración</h3><p>Los datos son ficticios y compartidos: lo que cambies lo verán los demás. Para facilitar las pruebas, la entrada se puede registrar a cualquier hora.</p></div>
+<div class="caja"><h3>Todavía no activo</h3><p>Los correos quedan en una bandeja de salida y aún no se envían. Las alertas dentro de la app sí funcionan.</p></div>
+</div>
+</div></section>
+
+<section id="comentarios" class="fondo"><div class="c">
+<h2>Cuéntanos qué piensas</h2>
+<p class="intro">Nos sirve saber qué falló, qué fue confuso y qué le falta para tu trabajo diario. Escribe un comentario por cada tema.</p>
+<form id="form" novalidate>
+<div><label for="nombre">Tu nombre</label><input id="nombre" name="nombre" maxlength="80" autocomplete="name" required></div>
+<div><label for="rol">Rol que exploraste</label><select id="rol" name="rol" required></select></div>
+<div><label for="tipo">Tipo de comentario</label><select id="tipo" name="tipo" required><option value="error">Algo no funciona</option><option value="mejora">Se puede mejorar</option><option value="idea">Idea nueva</option><option value="positivo">Me gustó</option></select></div>
+<div><label for="pantalla">Pantalla o momento (opcional)</label><input id="pantalla" name="pantalla" maxlength="120"></div>
+<div class="full"><label for="comentario">Comentario</label><textarea id="comentario" name="comentario" maxlength="2000" required></textarea></div>
+<div class="trampa" aria-hidden="true"><label for="sitio">No llenar</label><input id="sitio" name="sitio" tabindex="-1" autocomplete="off"></div>
+<div class="full acciones" style="justify-content:flex-start;margin:0"><button class="btn" id="enviar">Enviar comentario</button><span id="estado" role="status" aria-live="polite"></span></div>
+</form>
+</div></section>
+</main>
+<footer>Entregamos con pasión, botella a botella</footer>
+
+<script>
+const APP="https://impulso-licodistribuciones.vercel.app";
+const ROLES=[
+{id:"Vendedor",tab:"Vendedor",rep:"Quien pide la activación",d:"Solicita impulso para sus puntos y sigue qué se aprobó, quién va y cuánto se vendió.",cuentas:[["Vendedor","100000003"]],pruebas:["Crea una solicitud con el botón Nueva solicitud.","Revisa en Mis solicitudes cuáles fueron aprobadas y el motivo de las que no.","Abre Programación y filtra por día y por canal.","En Mis activaciones, cambia a la semana anterior para ver las ventas."]},
+{id:"Trade Marketing",tab:"Trade Marketing",rep:"Representa a Verónica",d:"Decide qué puntos se activan, arma la programación y controla el cumplimiento de los turnos.",cuentas:[["Trade Marketing","100000002"]],pruebas:["En Programación, revisa las solicitudes pendientes y pulsa Generar propuesta.","Cambia una impulsadora o un horario y observa las alertas.","Aprueba o rechaza cada solicitud y pulsa Publicar cambios.","Revisa las pestañas Disponibilidad y Degustación.","En Efectividad, cambia a la semana anterior para ver el cumplimiento."]},
+{id:"Impulsadora",tab:"Impulsadora",rep:"Mejor desde el celular",d:"Consulta sus turnos y registra entrada, salida y ventas. Hay tres cuentas para que varias personas puedan probar.",cuentas:[["Impulsadora 1","100000006"],["Impulsadora 2","100000007"],["Impulsadora 3","100000008"]],pruebas:["Abre un turno y revisa punto, horario, uniforme y degustación.","Registra la entrada con foto y permite el acceso a tu ubicación.","Registra la salida y observa el aviso de tiempo incompleto.","Envía el reporte de ventas con unidades y degustación usada."]},
+{id:"Líder de canal",tab:"Líder de canal",rep:"Representa a Óscar",d:"Analiza el desempeño de las activaciones en unidades y unidades reducidas.",cuentas:[["Líder de canal","100000004"]],pruebas:["En Desempeño, cambia a la semana anterior.","Filtra por canal y compara los resultados.","Revisa ventas por marca, punto, municipio e impulsadora.","Dinos si faltan métricas que hoy sacas de tus archivos."]},
+{id:"Director comercial",tab:"Director comercial",rep:"Representa a Yesid",d:"Consulta el informe de ventas por establecimiento y referencia, en unidades y cajas.",cuentas:[["Director comercial","100000005"]],pruebas:["En Informe de ventas, cambia a la semana anterior.","Revisa la tabla por día, establecimiento y referencia.","Compara el formato con tu informe actual.","Abre Programación para ver lo planeado."]},
+{id:"Administrador",tab:"Administrador",rep:"Configuración de la app",d:"Administra usuarios y puntos, y consulta correos y comentarios del equipo.",cuentas:[["Administrador","100000001"]],pruebas:["En Usuarios, descarga la plantilla de Excel y revisa sus columnas.","En Puntos, consulta la ubicación de los establecimientos.","Abre Correos para ver los mensajes generados.","Abre Comentarios para leer lo que envía el equipo."]}
+];
+const $=s=>document.querySelector(s),tabs=$("#tabs"),panel=$("#panel"),rol=$("#rol");
+function mostrar(i){
+  const r=ROLES[i];
+  [...tabs.children].forEach((b,n)=>{b.setAttribute("aria-selected",n===i);b.tabIndex=n===i?0:-1});
+  panel.innerHTML=`<div class="panel"><div><h3 class="t">${r.tab}</h3><p class="rep">${r.rep}</p><p class="d">${r.d}</p><h4>Prueba esto</h4><ul class="lista">${r.pruebas.map(p=>`<li>${p}</li>`).join("")}</ul></div><aside class="acceso" aria-label="Acceso">${r.cuentas.map(([n,c])=>`<div class="cuenta"><small>${n} · cédula</small><div class="ced"><span>${c}</span><button class="copiar" type="button" data-c="${c}">Copiar</button></div><a class="entrar" href="${APP}/login?cedula=${c}" target="_blank" rel="noopener">Entrar como ${n}</a></div>`).join("")}</aside></div>`;
+  rol.value=r.id;
+}
+ROLES.forEach((r,i)=>{const b=document.createElement("button");b.type="button";b.role="tab";b.textContent=r.tab;b.onclick=()=>mostrar(i);tabs.append(b);rol.add(new Option(r.tab,r.id))});
+rol.add(new Option("General","General"));
+tabs.addEventListener("keydown",e=>{if(!["ArrowRight","ArrowLeft"].includes(e.key))return;const a=[...tabs.children].findIndex(b=>b.getAttribute("aria-selected")==="true"),n=(a+(e.key==="ArrowRight"?1:-1)+ROLES.length)%ROLES.length;mostrar(n);tabs.children[n].focus()});
+panel.addEventListener("click",async e=>{const b=e.target.closest(".copiar");if(!b)return;try{await navigator.clipboard.writeText(b.dataset.c);b.textContent="Copiada"}catch{b.textContent=b.dataset.c}setTimeout(()=>b.textContent="Copiar",1600)});
+mostrar(0);
+$("#form").addEventListener("submit",async e=>{
+  e.preventDefault();const f=e.target,est=$("#estado"),btn=$("#enviar");est.className="";est.textContent="Enviando…";btn.disabled=true;
+  try{const r=await fetch(APP+"/api/retroalimentacion",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.fromEntries(new FormData(f)))});const d=await r.json();
+    if(!r.ok)throw new Error(d.error);est.className="ok";est.textContent="Gracias. Tu comentario fue enviado.";f.comentario.value="";f.pantalla.value=""}
+  catch(err){est.className="mal";est.textContent=err.message||"No se pudo enviar. Revisa tu conexión."}
+  btn.disabled=false;
+});
+</script>
+</body>
+</html>
