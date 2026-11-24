@@ -38,7 +38,7 @@ export async function turnosDelPeriodo(periodoId: string, canal?: string | null)
     LEFT JOIN asistencias e ON e.turno_id = t.id AND e.tipo = 'entrada'
     LEFT JOIN asistencias s ON s.turno_id = t.id AND s.tipo = 'salida'
     LEFT JOIN reportes_venta r ON r.turno_id = t.id
-    WHERE t.periodo_id = ${periodoId} AND t.publicado AND NOT t.cancelado
+    WHERE t.periodo_id = ${periodoId} AND t.publicado AND NOT t.cancelado AND t.servicio <> 'bartender'
       AND (${canal ?? null}::text IS NULL OR t.canal = ${canal ?? null})
     ORDER BY t.inicio, p.nombre`;
   const ahora = ahoraBogota();

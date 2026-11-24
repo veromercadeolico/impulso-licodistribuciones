@@ -105,7 +105,7 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
     : { inicio: actual.fecha_inicio, fin: actual.fecha_fin, nombre: nombrePeriodo(actual.fecha_inicio, actual.fecha_fin) };
 
   const [turnos, degustacion, canales] = await Promise.all([
-    sql`SELECT t.id, t.inicio::text, t.fin::text, t.inicio::date::text AS dia, t.canal, t.uniforme, t.publicado,
+    sql`SELECT t.id, t.inicio::text, t.fin::text, t.inicio::date::text AS dia, t.canal, t.uniforme, t.publicado, t.servicio,
         c.nombre AS canal_nombre, c.orden, m.nombre AS marca, p.nombre AS lugar, p.municipio, u.nombre AS impulsadora,
         s.notas, s.obsequios
       FROM turnos t JOIN canales c ON c.codigo = t.canal JOIN marcas m ON m.codigo = t.marca
@@ -227,6 +227,7 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
                               {t.notas && <p className="mt-0.5 text-xs text-suave">Adicionales: {t.notas}</p>}
                             </div>
                             <div className="flex shrink-0 items-center gap-1.5">
+                              {t.servicio === "bartender" && <Insignia tono="marca">Bartender</Insignia>}
                               {!t.publicado && <Insignia tono="alerta">Borrador</Insignia>}
                               <Uniforme codigo={t.uniforme} />
                             </div>

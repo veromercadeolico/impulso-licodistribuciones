@@ -97,3 +97,6 @@ export const SUBPERFILES: Record<string, string> = { impulso: "Impulso", bodega:
 
 /** Áreas donde se puede registrar un turno sin programación (además de Impulso). */
 export const AREAS_TURNO: Record<string, string> = { bodega: "Bodega", oficina: "Oficina", mercadeo: "Mercadeo" };
+
+/** Tipo de servicio de una solicitud o turno. El bartender no registra entrada, salida ni reporte de ventas. */
+export const SERVICIOS: Record<string, string> = { impulso: "Impulso", bartender: "Bartender" };

@@ -242,3 +242,7 @@ CREATE TABLE IF NOT EXISTS turnos_area (
   creado_en timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS turnos_area_persona_idx ON turnos_area (impulsadora_id, entrada_en);
+
+-- Tipo de servicio de cada solicitud y turno: impulso o bartender (noviembre 2026). Lo existente queda como impulso.
+ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS servicio text NOT NULL DEFAULT 'impulso';
+ALTER TABLE turnos ADD COLUMN IF NOT EXISTS servicio text NOT NULL DEFAULT 'impulso';

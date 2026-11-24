@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Avisos, Encabezado, Tarjeta, Uniforme } from "@/components/ui";
 import { exigirRol } from "@/lib/auth";
 import { sql } from "@/lib/db";
-import { hoyBogota, MUNICIPIOS } from "@/lib/formato";
+import { hoyBogota, MUNICIPIOS, SERVICIOS } from "@/lib/formato";
 import { crearSolicitud } from "../acciones";
 
 const COLOR_UNIFORME: Record<string, string> = { AA: "amarillo", ESE: "azul", RVC: "rojo" };
@@ -19,10 +19,25 @@ export default async function NuevaSolicitudPage({ searchParams }: { searchParam
 
   return (
     <div className="mx-auto max-w-xl">
-      <Encabezado titulo="Nueva solicitud de impulso" detalle="La fecha y hora de envío se guardan automáticamente." />
+      <Encabezado titulo="Nueva solicitud" detalle="Impulso o bartender. La fecha y hora de envío se guardan automáticamente." />
       <Avisos error={error} />
       <Tarjeta>
         <form action={crearSolicitud} className="space-y-5">
+          <fieldset>
+            <legend className="etiqueta">Tipo de servicio</legend>
+            <div className="grid grid-cols-2 gap-2">
+              {Object.entries(SERVICIOS).map(([valor, texto]) => (
+                <label
+                  key={valor}
+                  className="flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-lg border border-linea bg-white px-3 text-sm font-semibold has-[:checked]:border-tinta has-[:checked]:bg-tinta has-[:checked]:text-fondo"
+                >
+                  <input type="radio" name="servicio" value={valor} defaultChecked={valor === "impulso"} className="sr-only" />
+                  {texto}
+                </label>
+              ))}
+            </div>
+            <p className="mt-1 text-xs text-suave">El bartender no registra entrada, salida ni reporte de ventas.</p>
+          </fieldset>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label htmlFor="fecha" className="etiqueta">Fecha de la activación</label>

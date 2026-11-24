@@ -44,7 +44,7 @@ export default async function TurnoPage({ params, searchParams }: Props) {
   const sp = await searchParams;
   if (!/^[0-9a-f-]{36}$/.test(id)) notFound();
 
-  const [t] = await sql`SELECT t.id, t.inicio::text, t.fin::text, t.uniforme, t.marca AS marca_codigo, m.nombre AS marca, p.nombre AS lugar, p.municipio,
+  const [t] = await sql`SELECT t.id, t.inicio::text, t.fin::text, t.uniforme, t.marca AS marca_codigo, t.servicio, m.nombre AS marca, p.nombre AS lugar, p.municipio,
       s.notas FROM turnos t JOIN puntos p ON p.id = t.punto_id JOIN marcas m ON m.codigo = t.marca
       LEFT JOIN solicitudes s ON s.id = t.solicitud_id
     WHERE t.id = ${id} AND t.impulsadora_id = ${usuario.id} AND t.publicado AND NOT t.cancelado`;
@@ -81,6 +81,13 @@ export default async function TurnoPage({ params, searchParams }: Props) {
 
       <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-16">
         <div className="order-2 min-w-0 lg:order-1">
+          {t.servicio === "bartender" ? (
+            <div className="tarjeta">
+              <p className="titulo text-base">Turno de bartender</p>
+              <p className="mt-2 text-sm text-suave">Este turno no requiere registrar entrada, salida ni reporte de ventas. Preséntate en el punto a la hora indicada.</p>
+            </div>
+          ) : (
+          <>
           <Paso numero={1} titulo="Registra tu entrada" hecho={!!entrada}>
             {entrada ? <Hecho a={entrada} nombre="Entrada" /> : <RegistroAsistencia turnoId={t.id} tipo="entrada" />}
           </Paso>
@@ -112,6 +119,8 @@ export default async function TurnoPage({ params, searchParams }: Props) {
               <p className="text-sm text-suave">Disponible al finalizar el turno y registrar tu salida.</p>
             )}
           </Paso>
+          </>
+          )}
         </div>
 
         <aside className="order-1 lg:order-2">

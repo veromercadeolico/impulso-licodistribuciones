@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { exigirRol } from "@/lib/auth";
 import { sql } from "@/lib/db";
-import { ahoraBogota, hoyBogota, MUNICIPIOS } from "@/lib/formato";
+import { ahoraBogota, hoyBogota, MUNICIPIOS, SERVICIOS } from "@/lib/formato";
 import { asegurarPeriodo } from "@/lib/periodos";
 
 const error = (m: string): never => redirect(`/solicitudes/nueva?error=${encodeURIComponent(m)}`);
@@ -23,6 +23,8 @@ export async function crearSolicitud(datos: FormData) {
   const notas = String(datos.get("notas") ?? "").trim().slice(0, 500) || null;
   const obsequios = String(datos.get("obsequios") ?? "").trim().slice(0, 300) || null;
   const prioridad = Number(datos.get("prioridad")) || null;
+  const servicio = String(datos.get("servicio") ?? "impulso");
+  if (!SERVICIOS[servicio]) error("Elige el tipo de servicio: Impulso o Bartender.");
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha) || !/^\d{2}:\d{2}$/.test(hora)) error("Indica la fecha y la hora de la activación.");
   if (fecha < hoyBogota()) error("La fecha de la activación ya pasó.");
@@ -45,8 +47,8 @@ export async function crearSolicitud(datos: FormData) {
 
   await sql.transaction(
     marcas.map(
-      (marca) => sql`INSERT INTO solicitudes (periodo_id, vendedor_id, canal, fecha, hora, marca, punto_id, notas, obsequios, prioridad, extemporanea, grupo)
-        VALUES (${periodo.id}, ${usuario.id}, ${canal}, ${fecha}, ${hora}, ${marca}, ${punto.id}, ${notas}, ${obsequios}, ${prioridad}, ${extemporanea}, ${grupo})`,
+      (marca) => sql`INSERT INTO solicitudes (periodo_id, vendedor_id, canal, fecha, hora, marca, punto_id, notas, obsequios, prioridad, extemporanea, grupo, servicio)
+        VALUES (${periodo.id}, ${usuario.id}, ${canal}, ${fecha}, ${hora}, ${marca}, ${punto.id}, ${notas}, ${obsequios}, ${prioridad}, ${extemporanea}, ${grupo}, ${servicio})`,
     ),
   );
 

@@ -41,7 +41,7 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
 
   const [registros, canales] = await Promise.all([
     sql`SELECT s.id, s.fecha::text, s.hora::text, s.notas, s.prioridad, s.extemporanea, s.estado, s.vendedor_id, s.canal AS canal_codigo,
-      s.creado_en::text AS creado_orden, s.motivo_rechazo, s.obsequios, p.direccion, m.nombre AS marca, m.uniforme, c.nombre AS canal, p.nombre AS lugar, p.municipio,
+      s.creado_en::text AS creado_orden, s.motivo_rechazo, s.servicio, s.obsequios, p.direccion, m.nombre AS marca, m.uniforme, c.nombre AS canal, p.nombre AS lugar, p.municipio,
       (s.creado_en AT TIME ZONE 'America/Bogota')::text AS creado, v.nombre AS vendedor,
       t.inicio::text, t.fin::text, t.publicado, u.nombre AS impulsadora,
       ct.motivo AS cambio_motivo, ct.detalle AS cambio_detalle
@@ -150,6 +150,7 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
               <p className="text-sm text-suave">{fechaCorta(s.fecha)}, {hora(s.hora)}</p>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {s.prioridad && <Insignia tono="marca">Relevancia {PRIORIDADES[s.prioridad]}</Insignia>}
+                {s.servicio === "bartender" && <Insignia tono="marca">Bartender</Insignia>}
                 {s.extemporanea && <Insignia tono="alerta">Extemporánea</Insignia>}
               </div>
               {s.notas && <p className="mt-2 text-sm">{s.notas}</p>}

@@ -19,7 +19,7 @@ function Paso({ hecho, texto }: { hecho: boolean; texto: string }) {
 
 export default async function TurnosPage() {
   const usuario = await exigirRol("impulsadora");
-  const turnos = await sql`SELECT t.id, t.inicio::text, t.fin::text, t.uniforme, m.nombre AS marca, p.nombre AS lugar, p.municipio,
+  const turnos = await sql`SELECT t.id, t.inicio::text, t.fin::text, t.uniforme, t.servicio, m.nombre AS marca, p.nombre AS lugar, p.municipio,
       EXISTS (SELECT 1 FROM asistencias a WHERE a.turno_id = t.id AND a.tipo = 'entrada') AS entrada,
       EXISTS (SELECT 1 FROM asistencias a WHERE a.turno_id = t.id AND a.tipo = 'salida') AS salida,
       EXISTS (SELECT 1 FROM reportes_venta r WHERE r.turno_id = t.id) AS ventas
@@ -35,7 +35,8 @@ export default async function TurnosPage() {
   const proximos = turnos.filter((t) => !t.ventas && t.fin.slice(0, 10) >= ahora.slice(0, 10)).reverse();
   const anteriores = turnos.filter((t) => !proximos.includes(t));
   const desde = sumarDias(ahora, -DIAS_ALERTA_REPORTE);
-  const sinReporte = turnos.filter((t) => !t.ventas && t.fin.slice(0, 16) <= ahora && t.fin.slice(0, 10) >= desde).reverse();
+  // El bartender no envía reporte de ventas: sus turnos no generan alerta.
+  const sinReporte = turnos.filter((t) => t.servicio !== "bartender" && !t.ventas && t.fin.slice(0, 16) <= ahora && t.fin.slice(0, 10) >= desde).reverse();
 
   const Ficha = ({ t }: { t: (typeof turnos)[number] }) => (
     <li>
@@ -45,11 +46,15 @@ export default async function TurnosPage() {
         </Portada>
         <h3 className="mt-3 truncate font-semibold">{t.lugar}</h3>
         <p className="text-sm text-suave">{t.municipio} · {horario(t.inicio, t.fin)}</p>
-        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
-          <Paso hecho={t.entrada} texto="Entrada" />
-          <Paso hecho={t.salida} texto="Salida" />
-          <Paso hecho={t.ventas} texto="Ventas" />
-        </div>
+        {t.servicio === "bartender" ? (
+          <p className="mt-2 text-xs font-semibold text-marca-fuerte">Bartender · no requiere registro ni reporte</p>
+        ) : (
+          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+            <Paso hecho={t.entrada} texto="Entrada" />
+            <Paso hecho={t.salida} texto="Salida" />
+            <Paso hecho={t.ventas} texto="Ventas" />
+          </div>
+        )}
       </Link>
     </li>
   );

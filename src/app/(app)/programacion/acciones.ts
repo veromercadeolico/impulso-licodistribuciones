@@ -82,7 +82,7 @@ export async function proponerProgramacion(datos: FormData) {
 
   const [solicitudes, impulsadoras, fijos, disponibles] = await Promise.all([
     sql`SELECT s.id, s.prioridad, s.creado_en::text AS creado, s.fecha::text, s.hora::text, s.canal, s.punto_id, s.marca,
-        m.uniforme, p.municipio
+        s.servicio, m.uniforme, p.municipio
       FROM solicitudes s JOIN puntos p ON p.id = s.punto_id JOIN marcas m ON m.codigo = s.marca
       WHERE s.periodo_id = ${periodoId} AND s.estado = 'pendiente'
         AND NOT EXISTS (SELECT 1 FROM turnos t WHERE t.solicitud_id = s.id)`,
@@ -121,15 +121,16 @@ export async function proponerProgramacion(datos: FormData) {
       punto_id: s.punto_id,
       marca: s.marca,
       uniforme: s.uniforme,
+      servicio: s.servicio,
       inicio,
       fin: sumarMinutos(inicio, DURACION_TURNO_MIN),
     };
   });
   if (filas.length) {
-    await sql`INSERT INTO turnos (periodo_id, solicitud_id, impulsadora_id, canal, punto_id, marca, uniforme, inicio, fin)
-      SELECT ${periodoId}::uuid, x.solicitud_id, x.impulsadora_id, x.canal, x.punto_id, x.marca, x.uniforme, x.inicio, x.fin
+    await sql`INSERT INTO turnos (periodo_id, solicitud_id, impulsadora_id, canal, punto_id, marca, uniforme, servicio, inicio, fin)
+      SELECT ${periodoId}::uuid, x.solicitud_id, x.impulsadora_id, x.canal, x.punto_id, x.marca, x.uniforme, x.servicio, x.inicio, x.fin
       FROM jsonb_to_recordset(${JSON.stringify(filas)}::jsonb) AS x(solicitud_id uuid, impulsadora_id uuid, canal text,
-        punto_id uuid, marca text, uniforme text, inicio timestamp, fin timestamp)`;
+        punto_id uuid, marca text, uniforme text, servicio text, inicio timestamp, fin timestamp)`;
   }
   await recalcularAlertas(periodoId);
   revalidatePath("/programacion");
@@ -206,12 +207,12 @@ export async function aprobarSolicitud(datos: FormData) {
     puntoId = punto.id;
     lugar = punto.nombre;
   }
-  const [turno] = await sql`INSERT INTO turnos (periodo_id, solicitud_id, impulsadora_id, canal, punto_id, marca, uniforme,
+  const [turno] = await sql`INSERT INTO turnos (periodo_id, solicitud_id, impulsadora_id, canal, punto_id, marca, uniforme, servicio,
       inicio, fin, alertas, motivo_excepcion, ajuste_manual, publicado)
-    VALUES (${periodoId}, ${id}, ${impulsadoraId}, ${s.canal}, ${puntoId}, ${s.marca}, ${s.uniforme}, ${inicio}, ${fin},
+    VALUES (${periodoId}, ${id}, ${impulsadoraId}, ${s.canal}, ${puntoId}, ${s.marca}, ${s.uniforme}, ${s.servicio ?? "impulso"}, ${inicio}, ${fin},
       ${JSON.stringify(alertas)}::jsonb, ${motivoExcepcion}, true, ${publicado})
     ON CONFLICT (solicitud_id) DO UPDATE SET impulsadora_id = EXCLUDED.impulsadora_id, inicio = EXCLUDED.inicio,
-      fin = EXCLUDED.fin, punto_id = EXCLUDED.punto_id, alertas = EXCLUDED.alertas, motivo_excepcion = EXCLUDED.motivo_excepcion,
+      fin = EXCLUDED.fin, punto_id = EXCLUDED.punto_id, servicio = EXCLUDED.servicio, alertas = EXCLUDED.alertas, motivo_excepcion = EXCLUDED.motivo_excepcion,
       ajuste_manual = true, cancelado = false, publicado = turnos.publicado OR EXCLUDED.publicado
     RETURNING id`;
   await sql`UPDATE solicitudes SET estado = 'aprobada', motivo_rechazo = NULL, punto_id = ${puntoId} WHERE id = ${id}`;

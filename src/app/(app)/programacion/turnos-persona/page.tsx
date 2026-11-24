@@ -89,7 +89,7 @@ export default async function TurnosPorPersonaPage({ searchParams }: { searchPar
   const rango = vista === "mes" ? { inicio: mes.inicio, fin: mes.fin, nombre: `Mes de ${mes.nombre}` }
     : { inicio: bloque.inicio, fin: bloque.fin, nombre: `Fin de semana ${nombreBloque(bloque, fechaCorta)}` };
 
-  const registros = await sql`SELECT u.id AS persona_id, u.nombre, u.subperfil,
+  const registros = await sql`SELECT u.id AS persona_id, u.nombre, u.subperfil, t.servicio,
       to_char(t.inicio, 'YYYY-MM-DD HH24:MI') AS inicio, to_char(t.fin, 'YYYY-MM-DD HH24:MI') AS fin,
       (SELECT registrado_en::text FROM asistencias a WHERE a.turno_id = t.id AND a.tipo = 'entrada') AS entrada,
       (SELECT registrado_en::text FROM asistencias a WHERE a.turno_id = t.id AND a.tipo = 'salida') AS salida
@@ -101,12 +101,15 @@ export default async function TurnosPorPersonaPage({ searchParams }: { searchPar
     FROM turnos_area a JOIN usuarios u ON u.id = a.impulsadora_id
     WHERE a.entrada_en::date BETWEEN ${rango.inicio}::date AND ${rango.fin}::date`;
   const todos = [
-    ...registros.map((r) => ({ area: "impulso", personaId: r.persona_id, nombre: r.nombre, subperfil: r.subperfil, inicio: r.inicio, fin: r.fin, entrada: r.entrada, salida: r.salida })),
+    // El bartender no registra entrada ni salida: cuenta con las horas programadas del turno.
+    ...registros.map((r) => r.servicio === "bartender"
+      ? { area: "bartender", personaId: r.persona_id, nombre: r.nombre, subperfil: r.subperfil, inicio: r.inicio, fin: r.fin, entrada: r.inicio, salida: r.fin }
+      : { area: "impulso", personaId: r.persona_id, nombre: r.nombre, subperfil: r.subperfil, inicio: r.inicio, fin: r.fin, entrada: r.entrada, salida: r.salida }),
     ...registrosArea.map((r) => ({ area: r.area as string, personaId: r.persona_id, nombre: r.nombre, subperfil: r.subperfil, inicio: r.inicio, fin: r.inicio, entrada: r.entrada, salida: r.salida })),
   ];
   const filas = consolidar(todos);
   // Un grupo por área donde se hizo el turno; al final, el total de cada persona sumando todas las áreas.
-  const grupos = Object.entries(SUBPERFILES)
+  const grupos = [...Object.entries(SUBPERFILES), ["bartender", "Bartender (horas programadas)"]]
     .map(([clave, nombre]) => ({ nombre, filas: consolidar(todos.filter((r) => r.area === clave)) }))
     .filter((g) => g.filas.length > 0);
 

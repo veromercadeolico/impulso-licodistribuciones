@@ -61,7 +61,7 @@ export default async function ProgramacionPage({ searchParams }: { searchParams:
   const nombresSupervision = supervision.map((s) => String(s.nombre).split(" ")[0]).join(" y ") || "Supervisión";
 
   const [solicitudes, impulsadoras, disponibilidad, canales] = await Promise.all([
-    sql`SELECT s.id, s.fecha::text, s.hora::text, s.notas, s.obsequios, s.grupo, s.canal AS canal_codigo, p.direccion, s.prioridad, s.extemporanea, s.estado, s.motivo_rechazo,
+    sql`SELECT s.id, s.fecha::text, s.hora::text, s.notas, s.obsequios, s.grupo, s.canal AS canal_codigo, p.direccion, s.prioridad, s.extemporanea, s.estado, s.motivo_rechazo, s.servicio,
         s.creado_en::text AS creado_orden, (s.creado_en AT TIME ZONE 'America/Bogota')::text AS creado,
         c.nombre AS canal, m.nombre AS marca, m.uniforme, p.nombre AS lugar, p.municipio, v.nombre AS vendedor,
         t.id AS turno_id, t.impulsadora_id, t.inicio::text, t.fin::text, t.alertas, t.motivo_excepcion, t.publicado, s.marca AS marca_codigo
@@ -81,7 +81,7 @@ export default async function ProgramacionPage({ searchParams }: { searchParams:
   const sinReporte = await sql`SELECT t.id, t.inicio::text, i.nombre AS impulsadora, p.nombre AS lugar,
       EXISTS (SELECT 1 FROM asistencias a WHERE a.turno_id = t.id AND a.tipo = 'salida') AS salida
     FROM turnos t JOIN usuarios i ON i.id = t.impulsadora_id JOIN puntos p ON p.id = t.punto_id
-    WHERE t.publicado AND NOT t.cancelado
+    WHERE t.publicado AND NOT t.cancelado AND t.servicio <> 'bartender'
       AND t.fin <= (now() AT TIME ZONE 'America/Bogota')
       AND t.fin >= (now() AT TIME ZONE 'America/Bogota')::date - ${DIAS_ALERTA_REPORTE}::int
       AND NOT EXISTS (SELECT 1 FROM reportes_venta r WHERE r.turno_id = t.id)
@@ -362,6 +362,7 @@ export default async function ProgramacionPage({ searchParams }: { searchParams:
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5">
                   <Uniforme codigo={s.uniforme} />
+                  {s.servicio === "bartender" && <Insignia tono="marca">Bartender</Insignia>}
                   {s.grupo && <Insignia>Varias marcas</Insignia>}
                   {s.prioridad ? <Insignia tono="marca">Relevancia {PRIORIDADES[s.prioridad]}</Insignia> : <Insignia>Por llegada</Insignia>}
                   {s.extemporanea && <Insignia tono="alerta">Extemporánea</Insignia>}

@@ -35,6 +35,7 @@ export async function registrarAsistencia(entrada: {
 
   const turno = await turnoPropio(turnoId, usuario.id);
   if (!turno) return { error: "Este turno no está asignado a ti." };
+  if (turno.servicio === "bartender") return { error: "Los turnos de bartender no requieren registrar entrada ni salida." };
 
   const previos = await sql`SELECT tipo FROM asistencias WHERE turno_id = ${turnoId}`;
   const tipos = previos.map((p) => p.tipo);
@@ -94,6 +95,7 @@ export async function enviarReporteVentas(datos: FormData) {
 
   const turno = await turnoPropio(turnoId, usuario.id);
   if (!turno) error("Este turno no está asignado a ti.");
+  if (turno.servicio === "bartender") error("Los turnos de bartender no llevan reporte de ventas.");
 
   const [{ salida, reporte }] = await sql`SELECT
     EXISTS (SELECT 1 FROM asistencias WHERE turno_id = ${turnoId} AND tipo = 'salida') AS salida,

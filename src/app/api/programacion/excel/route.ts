@@ -22,7 +22,7 @@ export async function GET(req: Request) {
   const [turnos, degustacion, solicitudes, impulsadoras, canales, oficina, disponibilidad] = await Promise.all([
     sql`SELECT t.id, t.inicio::date::text AS dia, t.inicio::text, t.fin::text, t.canal, c.nombre AS canal_nombre, c.orden,
         p.municipio, p.nombre AS lugar, p.direccion, t.marca, m.nombre AS marca_nombre, t.uniforme, u.nombre AS impulsadora,
-        s.notas, s.obsequios, v.nombre AS vendedor, t.publicado
+        CASE WHEN t.servicio = 'bartender' THEN concat_ws('. ', 'BARTENDER', s.notas) ELSE s.notas END AS notas, s.obsequios, v.nombre AS vendedor, t.publicado
       FROM turnos t JOIN canales c ON c.codigo = t.canal JOIN puntos p ON p.id = t.punto_id
       JOIN marcas m ON m.codigo = t.marca JOIN usuarios u ON u.id = t.impulsadora_id
       LEFT JOIN solicitudes s ON s.id = t.solicitud_id LEFT JOIN usuarios v ON v.id = s.vendedor_id
@@ -31,7 +31,7 @@ export async function GET(req: Request) {
       JOIN turnos t ON t.id = d.turno_id LEFT JOIN solicitudes s ON s.id = t.solicitud_id
       WHERE t.periodo_id = ${periodoId} AND NOT t.cancelado AND (s.id IS NULL OR s.estado = 'aprobada')`,
     sql`SELECT s.fecha::text, s.hora::text, c.nombre AS canal, p.municipio, p.nombre AS lugar, p.direccion, m.nombre AS marca,
-        m.uniforme, s.prioridad, s.estado, u.nombre AS impulsadora, s.motivo_rechazo AS motivo, s.notas, s.obsequios,
+        m.uniforme, s.prioridad, s.estado, u.nombre AS impulsadora, s.motivo_rechazo AS motivo, CASE WHEN s.servicio = 'bartender' THEN concat_ws('. ', 'BARTENDER', s.notas) ELSE s.notas END AS notas, s.obsequios,
         v.nombre AS vendedor, to_char(s.creado_en AT TIME ZONE 'America/Bogota', 'YYYY-MM-DD HH24:MI') AS recibida
       FROM solicitudes s JOIN canales c ON c.codigo = s.canal JOIN puntos p ON p.id = s.punto_id
       JOIN marcas m ON m.codigo = s.marca JOIN usuarios v ON v.id = s.vendedor_id
