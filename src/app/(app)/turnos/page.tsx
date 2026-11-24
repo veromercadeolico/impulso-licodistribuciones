@@ -3,7 +3,9 @@ import { Encabezado, EtiquetaPortada, Portada, Vacio } from "@/components/ui";
 import { Icono } from "@/components/iconos";
 import { exigirRol } from "@/lib/auth";
 import { sql } from "@/lib/db";
-import { ahoraBogota, fechaLarga, horario, sumarDias } from "@/lib/formato";
+import { RegistroArea } from "@/components/RegistroArea";
+import { minutosEntre } from "@/lib/consolidado";
+import { ahoraBogota, AREAS_TURNO, duracion, fechaCorta, fechaLarga, hora, horario, sumarDias } from "@/lib/formato";
 import { DIAS_ALERTA_REPORTE } from "@/lib/reglas";
 
 function Paso({ hecho, texto }: { hecho: boolean; texto: string }) {
@@ -24,6 +26,11 @@ export default async function TurnosPage() {
     FROM turnos t JOIN puntos p ON p.id = t.punto_id JOIN marcas m ON m.codigo = t.marca
     WHERE t.impulsadora_id = ${usuario.id} AND t.publicado AND NOT t.cancelado
     ORDER BY t.inicio DESC LIMIT 40`;
+  // Turnos en Bodega, Oficina o Mercadeo: no se programan; la persona registra entrada y salida.
+  const turnosArea = await sql`SELECT id, area, entrada_en::text AS entrada, salida_en::text AS salida
+    FROM turnos_area WHERE impulsadora_id = ${usuario.id} ORDER BY entrada_en DESC LIMIT 20`;
+  const abierto = turnosArea.find((a) => !a.salida);
+  const cerrados = turnosArea.filter((a) => a.salida);
   const ahora = ahoraBogota();
   const proximos = turnos.filter((t) => !t.ventas && t.fin.slice(0, 10) >= ahora.slice(0, 10)).reverse();
   const anteriores = turnos.filter((t) => !proximos.includes(t));
@@ -69,6 +76,32 @@ export default async function TurnosPage() {
           </ul>
         </div>
       )}
+      <section className="mb-10 tarjeta">
+        {abierto ? (
+          <>
+            <p className="text-xs font-bold tracking-wide text-suave uppercase">Turno en curso</p>
+            <h2 className="titulo mt-1 text-lg">{AREAS_TURNO[abierto.area]}</h2>
+            <p className="mb-3 text-sm text-suave">
+              Entrada registrada a las <strong className="text-tinta">{hora(abierto.entrada)}</strong> del {fechaCorta(abierto.entrada)}. Al terminar, registra tu salida.
+            </p>
+            <RegistroArea tipo="salida" turnoAreaId={abierto.id} />
+          </>
+        ) : (
+          <details>
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+              <span>
+                <span className="block font-semibold">¿Hoy trabajas en Bodega, Oficina o Mercadeo?</span>
+                <span className="block text-sm text-suave">Registra aquí tu entrada y tu salida. Estos turnos no llevan reporte de ventas.</span>
+              </span>
+              <span className="boton-sec shrink-0">Registrar</span>
+            </summary>
+            <div className="mt-4 border-t border-linea pt-4">
+              <RegistroArea tipo="entrada" />
+            </div>
+          </details>
+        )}
+      </section>
+
       <h2 className="mb-4 titulo text-lg">Próximos turnos</h2>
       {proximos.length === 0 && <Vacio>No tienes turnos pendientes.</Vacio>}
       <ul className={rejilla}>{proximos.map((t) => <Ficha key={t.id} t={t} />)}</ul>
@@ -76,6 +109,19 @@ export default async function TurnosPage() {
         <>
           <h2 className="mt-12 mb-4 titulo text-lg">Turnos anteriores</h2>
           <ul className={rejilla}>{anteriores.map((t) => <Ficha key={t.id} t={t} />)}</ul>
+        </>
+      )}
+      {cerrados.length > 0 && (
+        <>
+          <h2 className="mt-12 mb-4 titulo text-lg">Turnos en Bodega, Oficina y Mercadeo</h2>
+          <ul className="divide-y divide-linea rounded-lg border border-linea bg-white">
+            {cerrados.map((a) => (
+              <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
+                <span><strong>{AREAS_TURNO[a.area]}</strong> · {fechaLarga(a.entrada)}</span>
+                <span className="text-suave">{hora(a.entrada)} a {hora(a.salida)} · {duracion(minutosEntre(a.entrada, a.salida))}</span>
+              </li>
+            ))}
+          </ul>
         </>
       )}
     </>

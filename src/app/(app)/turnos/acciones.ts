@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { exigirRol } from "@/lib/auth";
 import { leerCompetencia, resumenCompetencia, type Competencia } from "@/lib/competencia";
 import { sql } from "@/lib/db";
-import { ahoraBogota, duracion, fechaCorta, horario } from "@/lib/formato";
+import { ahoraBogota, AREAS_TURNO, duracion, fechaCorta, horario } from "@/lib/formato";
 import { escapar, notificar } from "@/lib/notificar";
 import { aMinutos, distanciaMetros, RADIO_PUNTO_M, tiempoIncompleto } from "@/lib/reglas";
 
@@ -159,4 +159,41 @@ export async function enviarReporteVentas(datos: FormData) {
 
   revalidatePath(destino);
   redirect(`${destino}?ok=${encodeURIComponent("Reporte de ventas enviado.")}`);
+}
+
+/** Turno en otra área (Bodega, Oficina, Mercadeo) que la persona registra al llegar, sin programación. */
+export async function registrarTurnoArea(datos: {
+  tipo: "entrada" | "salida";
+  area?: string;
+  turnoAreaId?: string;
+  fotoBase64: string;
+  lat: number;
+  lng: number;
+}): Promise<{ error?: string }> {
+  const usuario = await exigirRol("impulsadora");
+  const { tipo, area, turnoAreaId, fotoBase64, lat, lng } = datos;
+  if (!fotoBase64 || fotoBase64.length > MAX_FOTO_BASE64) return { error: "La foto no es válida o es muy pesada." };
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return { error: "No se recibió tu ubicación." };
+  const [abierto] = await sql`SELECT id, area FROM turnos_area WHERE impulsadora_id = ${usuario.id} AND salida_en IS NULL
+    ORDER BY entrada_en DESC LIMIT 1`;
+  const fotoId = randomUUID();
+
+  if (tipo === "entrada") {
+    if (!area || !AREAS_TURNO[area]) return { error: "Elige el área: Bodega, Oficina o Mercadeo." };
+    if (abierto) return { error: `Ya tienes un turno abierto en ${AREAS_TURNO[abierto.area]}. Registra primero tu salida.` };
+    await sql.transaction([
+      sql`INSERT INTO fotos (id, contenido, mime) VALUES (${fotoId}, decode(${fotoBase64}, 'base64'), 'image/jpeg')`,
+      sql`INSERT INTO turnos_area (impulsadora_id, area, entrada_foto, entrada_lat, entrada_lng)
+        VALUES (${usuario.id}, ${area}, ${fotoId}, ${lat}, ${lng})`,
+    ]);
+  } else {
+    if (!abierto || abierto.id !== turnoAreaId) return { error: "No tienes un turno abierto para registrar la salida." };
+    await sql.transaction([
+      sql`INSERT INTO fotos (id, contenido, mime) VALUES (${fotoId}, decode(${fotoBase64}, 'base64'), 'image/jpeg')`,
+      sql`UPDATE turnos_area SET salida_en = now() AT TIME ZONE 'America/Bogota', salida_foto = ${fotoId},
+        salida_lat = ${lat}, salida_lng = ${lng} WHERE id = ${abierto.id} AND impulsadora_id = ${usuario.id} AND salida_en IS NULL`,
+    ]);
+  }
+  revalidatePath("/turnos");
+  return {};
 }

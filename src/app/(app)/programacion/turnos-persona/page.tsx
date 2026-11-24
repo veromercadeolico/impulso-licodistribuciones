@@ -38,7 +38,7 @@ function Tabla({ filas }: { filas: FilaConsolidado[] }) {
       <table className="tabla">
         <thead>
           <tr>
-            <th>Persona</th><th className="num">Programados</th><th className="num">Completos</th>
+            <th>Persona</th><th className="num">Turnos</th><th className="num">Completos</th>
             <th className="num">Horas reales</th><th className="num">Turnos (4 h)</th><th>Por revisar</th>
           </tr>
         </thead>
@@ -95,11 +95,19 @@ export default async function TurnosPorPersonaPage({ searchParams }: { searchPar
       (SELECT registrado_en::text FROM asistencias a WHERE a.turno_id = t.id AND a.tipo = 'salida') AS salida
     FROM turnos t JOIN usuarios u ON u.id = t.impulsadora_id
     WHERE t.publicado AND NOT t.cancelado AND t.inicio::date BETWEEN ${rango.inicio}::date AND ${rango.fin}::date`;
-  const filas = consolidar(registros.map((r) => ({
-    personaId: r.persona_id, nombre: r.nombre, subperfil: r.subperfil, inicio: r.inicio, fin: r.fin, entrada: r.entrada, salida: r.salida,
-  })));
-  const grupos = [...Object.entries(SUBPERFILES), ["", "Sin subperfil"]]
-    .map(([clave, nombre]) => ({ nombre, filas: filas.filter((f) => (f.subperfil ?? "") === clave) }))
+  // Turnos en Bodega, Oficina o Mercadeo: no se programan; cuentan por entrada y salida registradas.
+  const registrosArea = await sql`SELECT u.id AS persona_id, u.nombre, u.subperfil, a.area,
+      to_char(a.entrada_en, 'YYYY-MM-DD HH24:MI') AS inicio, a.entrada_en::text AS entrada, a.salida_en::text AS salida
+    FROM turnos_area a JOIN usuarios u ON u.id = a.impulsadora_id
+    WHERE a.entrada_en::date BETWEEN ${rango.inicio}::date AND ${rango.fin}::date`;
+  const todos = [
+    ...registros.map((r) => ({ area: "impulso", personaId: r.persona_id, nombre: r.nombre, subperfil: r.subperfil, inicio: r.inicio, fin: r.fin, entrada: r.entrada, salida: r.salida })),
+    ...registrosArea.map((r) => ({ area: r.area as string, personaId: r.persona_id, nombre: r.nombre, subperfil: r.subperfil, inicio: r.inicio, fin: r.inicio, entrada: r.entrada, salida: r.salida })),
+  ];
+  const filas = consolidar(todos);
+  // Un grupo por área donde se hizo el turno; al final, el total de cada persona sumando todas las áreas.
+  const grupos = Object.entries(SUBPERFILES)
+    .map(([clave, nombre]) => ({ nombre, filas: consolidar(todos.filter((r) => r.area === clave)) }))
     .filter((g) => g.filas.length > 0);
 
   return (
@@ -124,13 +132,18 @@ export default async function TurnosPorPersonaPage({ searchParams }: { searchPar
         ))}
       </div>
 
-      {filas.length === 0 && <Vacio>No hay turnos publicados en estas fechas.</Vacio>}
+      {filas.length === 0 && <Vacio>No hay turnos registrados en estas fechas.</Vacio>}
       <div className="space-y-5">
         {grupos.map((g) => (
           <Tarjeta key={g.nombre} titulo={`${g.nombre} · ${g.filas.length} ${g.filas.length === 1 ? "persona" : "personas"}`}>
             <Tabla filas={g.filas} />
           </Tarjeta>
         ))}
+        {grupos.length > 1 && (
+          <Tarjeta titulo="Total por persona (todas las áreas)">
+            <Tabla filas={filas} />
+          </Tarjeta>
+        )}
       </div>
       {filas.some((f) => f.sinSalida || f.sinEntrada) && (
         <p className="mt-4 text-sm text-suave">

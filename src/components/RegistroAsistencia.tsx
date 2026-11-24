@@ -6,7 +6,7 @@ import { registrarAsistencia } from "@/app/(app)/turnos/acciones";
 
 const LADO_MAXIMO = 1280;
 
-async function comprimir(archivo: File): Promise<string> {
+export async function comprimir(archivo: File): Promise<string> {
   const imagen = await createImageBitmap(archivo);
   const escala = Math.min(1, LADO_MAXIMO / Math.max(imagen.width, imagen.height));
   const lienzo = document.createElement("canvas");
@@ -16,7 +16,7 @@ async function comprimir(archivo: File): Promise<string> {
   return lienzo.toDataURL("image/jpeg", 0.72);
 }
 
-function ubicar(): Promise<GeolocationPosition> {
+export function ubicar(): Promise<GeolocationPosition> {
   return new Promise((ok, mal) =>
     navigator.geolocation
       ? navigator.geolocation.getCurrentPosition(ok, mal, { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 })

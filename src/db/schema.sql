@@ -225,3 +225,20 @@ ALTER TABLE reportes_venta ADD COLUMN IF NOT EXISTS publicidad text;
 
 -- Subperfil de cada persona del equipo (Impulso, Bodega, Oficina, Mercadeo). Columna nueva y vacía (noviembre 2026).
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS subperfil text;
+
+-- Turnos en otras áreas (Bodega, Oficina, Mercadeo) que la persona registra al llegar, sin programación (noviembre 2026).
+CREATE TABLE IF NOT EXISTS turnos_area (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  impulsadora_id uuid NOT NULL REFERENCES usuarios(id),
+  area text NOT NULL CHECK (area IN ('bodega','oficina','mercadeo')),
+  entrada_en timestamp NOT NULL DEFAULT (now() AT TIME ZONE 'America/Bogota'),
+  entrada_foto uuid NOT NULL REFERENCES fotos(id),
+  entrada_lat double precision,
+  entrada_lng double precision,
+  salida_en timestamp,
+  salida_foto uuid REFERENCES fotos(id),
+  salida_lat double precision,
+  salida_lng double precision,
+  creado_en timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS turnos_area_persona_idx ON turnos_area (impulsadora_id, entrada_en);

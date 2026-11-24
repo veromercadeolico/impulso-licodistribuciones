@@ -94,3 +94,6 @@ export const PRIORIDADES: Record<number, string> = { 1: "Alta", 2: "Media", 3: "
 
 /** Subperfiles del equipo: en qué área trabaja cada persona. */
 export const SUBPERFILES: Record<string, string> = { impulso: "Impulso", bodega: "Bodega", oficina: "Oficina", mercadeo: "Mercadeo" };
+
+/** Áreas donde se puede registrar un turno sin programación (además de Impulso). */
+export const AREAS_TURNO: Record<string, string> = { bodega: "Bodega", oficina: "Oficina", mercadeo: "Mercadeo" };
