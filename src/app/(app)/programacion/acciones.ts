@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { exigirRol } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { fechaCorta, hora as horaTexto, nombrePeriodo, PRESENTACIONES } from "@/lib/formato";
+import { DETALLE_APROBADO_TURNO, enlaceFlujo, pasosPermitidos, puedeEditar, puedePublicar, type Paso } from "@/lib/flujo";
+import { estadoSemana } from "@/lib/flujoSemana";
 import { notificar } from "@/lib/notificar";
 import {
   claveDisponibilidad,
@@ -17,6 +19,18 @@ import {
 } from "@/lib/reglas";
 
 const ruta = (p: string, ancla = "") => `/programacion?p=${p}${ancla}`;
+
+/** Exige que el usuario pueda asignar, aprobar o rechazar solicitudes en el paso actual de la semana. */
+async function exigirEdicion(periodoId: string) {
+  const usuario = await exigirRol("trade", "supervisor");
+  const { estado, publicada } = await estadoSemana(periodoId);
+  if (!puedeEditar(usuario.rol, estado, publicada)) {
+    volver(periodoId, "error", estado === "en_revision"
+      ? "La programación está en revisión de Supervisión. Espera su respuesta o retómala."
+      : "La programación ya fue aprobada por Supervisión. Si necesitas cambios, retómala.");
+  }
+  return usuario;
+}
 // Los avisos de una solicitud se muestran dentro de su tarjeta (s=id) para que se vean junto al formulario.
 const volver = (p: string, tipo: "ok" | "error", m: string, ancla = ""): never =>
   redirect(`/programacion?p=${p}&${tipo}=${encodeURIComponent(m)}${ancla.startsWith("#s-") ? `&s=${ancla.slice(3)}` : ""}${ancla}`);
@@ -60,6 +74,7 @@ async function recalcularAlertas(periodoId: string) {
 export async function proponerProgramacion(datos: FormData) {
   await exigirRol("trade");
   const periodoId = String(datos.get("periodo"));
+  await exigirEdicion(periodoId);
 
   await sql`DELETE FROM turnos t USING solicitudes s
     WHERE t.solicitud_id = s.id AND t.periodo_id = ${periodoId} AND s.estado = 'pendiente'
@@ -122,9 +137,9 @@ export async function proponerProgramacion(datos: FormData) {
 }
 
 export async function aprobarSolicitud(datos: FormData) {
-  const autor = await exigirRol("trade");
   const id = String(datos.get("id"));
   const periodoId = String(datos.get("periodo"));
+  const autor = await exigirEdicion(periodoId);
   const impulsadoraId = String(datos.get("impulsadora") ?? "");
   const horaInicio = String(datos.get("hora_inicio") ?? "");
   const horaFin = String(datos.get("hora_fin") ?? "");
@@ -162,6 +177,12 @@ export async function aprobarSolicitud(datos: FormData) {
   if (diaMovido && !motivoCambio) {
     volver(periodoId, "error", `Este turno estaba para el ${fechaCorta(diaAnterior)}: escribe el motivo del cambio de día.`, ancla);
   }
+  // Cambio de lugar (en el mismo municipio): el vendedor ve el motivo.
+  const lugarNuevo = String(datos.get("lugar") ?? "").trim().slice(0, 120);
+  const lugarCambiado = !!lugarNuevo && lugarNuevo.toLowerCase() !== String(s.lugar).toLowerCase();
+  if (lugarCambiado && !motivoCambio) {
+    volver(periodoId, "error", `El vendedor pidió ${s.lugar}: escribe el motivo del cambio de lugar.`, ancla);
+  }
 
   const alertas = evaluarTurno(
     { impulsadoraId, inicio, fin, municipio: s.municipio },
@@ -177,31 +198,42 @@ export async function aprobarSolicitud(datos: FormData) {
   }
 
   const publicado = periodo.estado === "publicado";
+  let puntoId: string = s.punto_id;
+  let lugar: string = s.lugar;
+  if (lugarCambiado) {
+    const [punto] = await sql`INSERT INTO puntos (nombre, municipio) VALUES (${lugarNuevo}, ${s.municipio})
+      ON CONFLICT (lower(nombre), lower(municipio)) DO UPDATE SET nombre = puntos.nombre RETURNING id, nombre`;
+    puntoId = punto.id;
+    lugar = punto.nombre;
+  }
   const [turno] = await sql`INSERT INTO turnos (periodo_id, solicitud_id, impulsadora_id, canal, punto_id, marca, uniforme,
       inicio, fin, alertas, motivo_excepcion, ajuste_manual, publicado)
-    VALUES (${periodoId}, ${id}, ${impulsadoraId}, ${s.canal}, ${s.punto_id}, ${s.marca}, ${s.uniforme}, ${inicio}, ${fin},
+    VALUES (${periodoId}, ${id}, ${impulsadoraId}, ${s.canal}, ${puntoId}, ${s.marca}, ${s.uniforme}, ${inicio}, ${fin},
       ${JSON.stringify(alertas)}::jsonb, ${motivoExcepcion}, true, ${publicado})
     ON CONFLICT (solicitud_id) DO UPDATE SET impulsadora_id = EXCLUDED.impulsadora_id, inicio = EXCLUDED.inicio,
-      fin = EXCLUDED.fin, alertas = EXCLUDED.alertas, motivo_excepcion = EXCLUDED.motivo_excepcion,
+      fin = EXCLUDED.fin, punto_id = EXCLUDED.punto_id, alertas = EXCLUDED.alertas, motivo_excepcion = EXCLUDED.motivo_excepcion,
       ajuste_manual = true, cancelado = false, publicado = turnos.publicado OR EXCLUDED.publicado
     RETURNING id`;
-  await sql`UPDATE solicitudes SET estado = 'aprobada', motivo_rechazo = NULL WHERE id = ${id}`;
+  await sql`UPDATE solicitudes SET estado = 'aprobada', motivo_rechazo = NULL, punto_id = ${puntoId} WHERE id = ${id}`;
   await recalcularAlertas(periodoId);
 
-  const descripcion = `${s.lugar}, ${fechaCorta(inicio)} de ${horaTexto(inicio)} a ${horaTexto(fin)}`;
+  const descripcion = `${lugar}, ${fechaCorta(inicio)} de ${horaTexto(inicio)} a ${horaTexto(fin)}`;
   // El cambio queda registrado con su motivo para que el vendedor lo vea en su solicitud.
-  if ((previo?.publicado || diaMovido) && motivoCambio) {
+  if ((previo?.publicado || diaMovido || lugarCambiado) && motivoCambio) {
     const reemplazo = previo && previo.impulsadora_id !== impulsadoraId
       ? (await sql`SELECT nombre FROM usuarios WHERE id = ${previo.impulsadora_id}`)[0]?.nombre
       : null;
     const detalle = [
       diaMovido ? `Movido del ${fechaCorta(diaAnterior)} al ${fechaCorta(fecha)}.` : "",
+      lugarCambiado ? `Cambio de lugar: ${s.lugar} → ${lugar}.` : "",
       reemplazo ? `${imp.nombre} reemplaza a ${reemplazo}.` : "",
       `Ahora: ${imp.nombre}, ${descripcion}`,
     ].filter(Boolean).join(" ");
     await sql`INSERT INTO cambios_turno (turno_id, autor_id, motivo, detalle)
       VALUES (${turno.id}, ${autor.id}, ${motivoCambio}, ${detalle})`;
   }
+  // Si Supervisión modifica y guarda un turno durante su revisión, ese turno queda aprobado por ella.
+  if (autor.rol === "supervisor") await registrarAprobacionTurno(turno.id, autor.id);
 
   if (publicado) {
     await notificar([s.vendedor_id, impulsadoraId, previo?.impulsadora_id], {
@@ -215,10 +247,28 @@ export async function aprobarSolicitud(datos: FormData) {
   volver(periodoId, "ok", "Solicitud aprobada.", ancla);
 }
 
+async function registrarAprobacionTurno(turnoId: string, autorId: string) {
+  await sql`INSERT INTO cambios_turno (turno_id, autor_id, motivo, detalle)
+    VALUES (${turnoId}, ${autorId}, 'Revisión de Supervisión', ${DETALLE_APROBADO_TURNO})`;
+}
+
+/** Supervisión aprueba un turno tal como está durante su revisión. */
+export async function aprobarTurnoRevision(datos: FormData) {
+  const periodoId = String(datos.get("periodo"));
+  const solicitudId = String(datos.get("id"));
+  const autor = await exigirEdicion(periodoId);
+  if (autor.rol !== "supervisor" && autor.rol !== "admin") volver(periodoId, "error", "Solo Supervisión aprueba turnos en la revisión.");
+  const [t] = await sql`SELECT id FROM turnos WHERE solicitud_id = ${solicitudId} AND periodo_id = ${periodoId} AND NOT cancelado`;
+  if (!t) volver(periodoId, "error", "Esta solicitud no tiene turno asignado. Usa Modificar para asignarlo.", `#s-${solicitudId}`);
+  await registrarAprobacionTurno(t.id, autor.id);
+  revalidatePath("/programacion");
+  volver(periodoId, "ok", "Turno aprobado.", `#s-${solicitudId}`);
+}
+
 export async function rechazarSolicitud(datos: FormData) {
-  const autor = await exigirRol("trade");
   const id = String(datos.get("id"));
   const periodoId = String(datos.get("periodo"));
+  const autor = await exigirEdicion(periodoId);
   const motivo = String(datos.get("motivo") ?? "").trim();
   if (!motivo) volver(periodoId, "error", "Escribe el motivo para no aprobar la solicitud.", `#s-${id}`);
 
@@ -254,6 +304,7 @@ export async function rechazarSolicitud(datos: FormData) {
 export async function aprobarSinAlertas(datos: FormData) {
   await exigirRol("trade");
   const periodoId = String(datos.get("periodo"));
+  await exigirEdicion(periodoId);
   const filas = await sql`UPDATE solicitudes s SET estado = 'aprobada'
     FROM turnos t WHERE t.solicitud_id = s.id AND s.periodo_id = ${periodoId} AND s.estado = 'pendiente'
       AND NOT t.cancelado AND NOT t.alertas @> '[{"requiereMotivo": true}]'::jsonb RETURNING s.id`;
@@ -264,6 +315,10 @@ export async function aprobarSinAlertas(datos: FormData) {
 export async function publicarProgramacion(datos: FormData) {
   await exigirRol("trade");
   const periodoId = String(datos.get("periodo"));
+  const flujo = await estadoSemana(periodoId);
+  if (!puedePublicar(flujo.estado, flujo.publicada)) {
+    volver(periodoId, "error", "Primero Supervisión debe aprobar la programación.");
+  }
   await recalcularAlertas(periodoId);
 
   const [{ pendientes, sin_motivo }] = await sql`SELECT
@@ -294,6 +349,65 @@ export async function publicarProgramacion(datos: FormData) {
   });
   revalidatePath("/programacion");
   volver(periodoId, "ok", "Programación publicada. Vendedores e impulsadoras ya fueron avisados.");
+}
+
+/** Avanza el flujo de revisión: Trade envía o retoma; Supervisión aprueba o devuelve con comentario. */
+export async function avanzarFlujo(datos: FormData) {
+  const usuario = await exigirRol("trade", "supervisor");
+  const periodoId = String(datos.get("periodo"));
+  const paso = String(datos.get("paso")) as Paso;
+  const comentario = String(datos.get("comentario") ?? "").trim().slice(0, 500);
+
+  const flujo = await estadoSemana(periodoId);
+  if (!pasosPermitidos(usuario.rol, flujo.estado, flujo.publicada).includes(paso)) {
+    volver(periodoId, "error", "Esta acción no está disponible en el paso actual de la programación.");
+  }
+  if (paso === "devuelta" && !comentario) volver(periodoId, "error", "Escribe el comentario para Verónica antes de devolver.");
+
+  if (paso === "enviada") {
+    await recalcularAlertas(periodoId);
+    const [{ pendientes, sin_motivo }] = await sql`SELECT
+      (SELECT count(*)::int FROM solicitudes WHERE periodo_id = ${periodoId} AND estado = 'pendiente') AS pendientes,
+      (SELECT count(*)::int FROM turnos WHERE periodo_id = ${periodoId} AND NOT cancelado AND motivo_excepcion IS NULL
+         AND alertas @> '[{"requiereMotivo": true}]'::jsonb) AS sin_motivo`;
+    if (pendientes > 0) volver(periodoId, "error", `Faltan ${pendientes} solicitudes por aprobar o rechazar antes de enviar.`);
+    if (sin_motivo > 0) volver(periodoId, "error", `Hay ${sin_motivo} turnos con alertas sin motivo de excepción.`);
+  }
+
+  const [p] = await sql`SELECT fecha_inicio::text, fecha_fin::text FROM periodos WHERE id = ${periodoId}`;
+  const nombre = nombrePeriodo(p.fecha_inicio, p.fecha_fin);
+  const paraSupervision = paso === "enviada" || paso === "retomada";
+  const destinatarios = await sql`SELECT id FROM usuarios WHERE activo AND rol = ${paraSupervision ? "supervisor" : "trade"}`;
+  if (!destinatarios.length) {
+    volver(periodoId, "error", paraSupervision ? "No hay ningún usuario de Supervisión activo para revisar." : "No hay ningún usuario de Trade Marketing activo.");
+  }
+
+  const textos: Record<Paso, { titulo: string; cuerpo: string; ok: string }> = {
+    enviada: {
+      titulo: `Programación para revisar: ${nombre}`,
+      cuerpo: `${usuario.nombre} terminó la programación del ${nombre} y te la envió para revisar y aprobar.`,
+      ok: "Programación enviada a Supervisión para su revisión.",
+    },
+    aprobada: {
+      titulo: `Programación aprobada: ${nombre}`,
+      cuerpo: `${usuario.nombre} aprobó la programación del ${nombre}. Ya puedes descargar el Excel y publicarla.${comentario ? ` Comentario: ${comentario}` : ""}`,
+      ok: "Programación aprobada. Trade Marketing ya fue avisado.",
+    },
+    devuelta: {
+      titulo: `Programación devuelta: ${nombre}`,
+      cuerpo: `${usuario.nombre} devolvió la programación del ${nombre} con este comentario: ${comentario}`,
+      ok: "Programación devuelta a Trade Marketing con tu comentario.",
+    },
+    retomada: {
+      titulo: `Programación retomada: ${nombre}`,
+      cuerpo: `${usuario.nombre} retomó la programación del ${nombre} para hacer cambios. Te la enviará de nuevo para revisar.`,
+      ok: "Retomaste la programación. Cuando termines, envíala de nuevo a Supervisión.",
+    },
+  };
+  const t = textos[paso];
+  await notificar(destinatarios.map((d) => d.id), { titulo: t.titulo, cuerpo: t.cuerpo, enlace: enlaceFlujo(periodoId, paso), correo: true });
+  revalidatePath("/programacion");
+  volver(periodoId, "ok", t.ok);
 }
 
 export async function actualizarLimite(datos: FormData) {
@@ -328,8 +442,21 @@ export async function guardarDisponibilidad(datos: FormData) {
 const aDegustacion = (p: string, tipo: "ok" | "error", m: string): never =>
   redirect(`/programacion/degustacion?p=${p}&${tipo}=${encodeURIComponent(m)}`);
 
+/** Trade asigna degustación siempre; Supervisión solo durante su revisión. Al venir de Programación, vuelve a la solicitud. */
+async function exigirDegustacion(datos: FormData) {
+  const usuario = await exigirRol("trade", "supervisor");
+  const periodoId = String(datos.get("periodo"));
+  if (usuario.rol === "supervisor") {
+    const { estado, publicada } = await estadoSemana(periodoId);
+    if (publicada || estado !== "en_revision") volver(periodoId, "error", "Solo puedes cambiar la degustación mientras la programación está en tu revisión.");
+  }
+  const solicitud = String(datos.get("solicitud") ?? "");
+  return (tipo: "ok" | "error", m: string): never =>
+    datos.get("desde") === "programacion" ? volver(periodoId, tipo, m, `#s-${solicitud}`) : aDegustacion(periodoId, tipo, m);
+}
+
 export async function asignarDegustacion(datos: FormData) {
-  await exigirRol("trade");
+  const responder = await exigirDegustacion(datos);
   const periodoId = String(datos.get("periodo"));
   const turnoId = String(datos.get("turno"));
   const marca = String(datos.get("marca"));
@@ -337,20 +464,26 @@ export async function asignarDegustacion(datos: FormData) {
   const tipo = datos.get("tipo") === "obsequio" ? "obsequio" : "degustacion";
   const cantidad = Number(datos.get("cantidad"));
   if (!PRESENTACIONES.includes(presentacion) || !Number.isInteger(cantidad) || cantidad <= 0) {
-    aDegustacion(periodoId, "error", "Indica una presentación y una cantidad válidas.");
+    responder("error", "Indica una presentación y una cantidad válidas.");
   }
+  const [turno] = await sql`SELECT id FROM turnos WHERE id = ${turnoId} AND periodo_id = ${periodoId}`;
+  if (!turno) responder("error", "El turno no pertenece a esta semana.");
   await sql`INSERT INTO degustacion (turno_id, marca, presentacion, asignado, tipo)
     VALUES (${turnoId}, ${marca}, ${presentacion}, ${cantidad}, ${tipo})
     ON CONFLICT (turno_id, marca, presentacion) DO UPDATE SET asignado = EXCLUDED.asignado, tipo = EXCLUDED.tipo`;
   revalidatePath("/programacion/degustacion");
-  aDegustacion(periodoId, "ok", tipo === "obsequio" ? "Obsequio asignado." : "Degustación asignada.");
+  revalidatePath("/programacion");
+  responder("ok", tipo === "obsequio" ? "Obsequio asignado." : "Degustación asignada.");
 }
 
 export async function quitarDegustacion(datos: FormData) {
-  await exigirRol("trade");
-  await sql`DELETE FROM degustacion WHERE id = ${String(datos.get("id"))} AND usado IS NULL`;
+  const responder = await exigirDegustacion(datos);
+  const periodoId = String(datos.get("periodo"));
+  await sql`DELETE FROM degustacion d USING turnos t
+    WHERE d.id = ${String(datos.get("id"))} AND d.usado IS NULL AND t.id = d.turno_id AND t.periodo_id = ${periodoId}`;
   revalidatePath("/programacion/degustacion");
-  aDegustacion(String(datos.get("periodo")), "ok", "Degustación retirada.");
+  revalidatePath("/programacion");
+  responder("ok", "Degustación retirada.");
 }
 
 export async function guardarOficina(datos: FormData) {

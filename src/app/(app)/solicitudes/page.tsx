@@ -3,6 +3,7 @@ import { Icono } from "@/components/iconos";
 import { Avisos, Encabezado, EtiquetaPortada, Insignia, Portada, SelectorPeriodo, Vacio } from "@/components/ui";
 import { exigirRol } from "@/lib/auth";
 import { sql } from "@/lib/db";
+import { DETALLE_APROBADO_TURNO } from "@/lib/flujo";
 import { fechaCorta, fechaLarga, hora, horario, PRIORIDADES } from "@/lib/formato";
 import { periodoSeleccionado } from "@/lib/periodos";
 import { ordenarSolicitudes } from "@/lib/reglas";
@@ -28,7 +29,7 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
     LEFT JOIN turnos t ON t.solicitud_id = s.id AND NOT t.cancelado
     LEFT JOIN usuarios u ON u.id = t.impulsadora_id
     LEFT JOIN LATERAL (SELECT motivo, detalle FROM cambios_turno
-      WHERE turno_id = t.id AND detalle <> 'Turno cancelado' ORDER BY creado_en DESC LIMIT 1) ct ON true
+      WHERE turno_id = t.id AND detalle NOT IN ('Turno cancelado', ${DETALLE_APROBADO_TURNO}) ORDER BY creado_en DESC LIMIT 1) ct ON true
     WHERE s.vendedor_id = ${usuario.id} AND s.periodo_id = ${actual.id}
     ORDER BY s.creado_en`;
   const filas = ordenarSolicitudes(
