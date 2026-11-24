@@ -91,3 +91,6 @@ export const MUNICIPIOS = [
 
 export const PRESENTACIONES = ["Media", "Botella", "Litro", "Tetra", "Cuarto", "Shot"];
 export const PRIORIDADES: Record<number, string> = { 1: "Alta", 2: "Media", 3: "Baja" };
+
+/** Subperfiles del equipo: en qué área trabaja cada persona. */
+export const SUBPERFILES: Record<string, string> = { impulso: "Impulso", bodega: "Bodega", oficina: "Oficina", mercadeo: "Mercadeo" };

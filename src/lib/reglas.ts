@@ -2,10 +2,10 @@
 
 export const DURACION_TURNO_MIN = 240;
 export const DESCANSO_MINIMO_MIN = 90;
-export const RADIO_PUNTO_M = 200;
+export const RADIO_PUNTO_M = 30;
 export const META_CUMPLIMIENTO = 0.8;
 /** Parte del turno programado que debe trabajarse para que cuente como cumplido. */
-export const PORCENTAJE_TIEMPO_MINIMO = 0.75;
+export const PORCENTAJE_TIEMPO_MINIMO = 0.8;
 /** Días hacia atrás en los que un turno terminado sin reporte de ventas genera alerta. */
 export const DIAS_ALERTA_REPORTE = 7;
 

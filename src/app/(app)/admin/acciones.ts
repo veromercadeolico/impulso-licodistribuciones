@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { exigirRol, type Usuario } from "@/lib/auth";
 import { sql } from "@/lib/db";
-import { MUNICIPIOS, ROLES } from "@/lib/formato";
+import { MUNICIPIOS, ROLES, SUBPERFILES } from "@/lib/formato";
 
 const aUsuarios = (tipo: "ok" | "error", m: string): never =>
   redirect(`/admin/usuarios?${tipo}=${encodeURIComponent(m)}`);
@@ -15,7 +15,7 @@ export async function rolesQuePuedeGestionar(u: Pick<Usuario, "rol">): Promise<s
   return u.rol === "admin" ? Object.keys(ROLES) : ["vendedor", "impulsadora", "supervisor"];
 }
 
-type Datos = { cedula: string | null; nombre: string; correo: string | null; rol: string; canal: string | null; municipio: string | null };
+type Datos = { cedula: string | null; nombre: string; correo: string | null; rol: string; canal: string | null; municipio: string | null; subperfil?: string | null };
 
 function validar(d: Datos, canales: string[], permitidos: string[]): string | null {
   if (d.nombre.length < 3) return "El nombre es obligatorio.";
@@ -26,6 +26,7 @@ function validar(d: Datos, canales: string[], permitidos: string[]): string | nu
   if (d.canal && !canales.includes(d.canal)) return `El canal ${d.canal} no existe.`;
   if (d.rol === "vendedor" && !d.canal) return `Indica el canal del vendedor ${d.nombre}.`;
   if (d.municipio && !MUNICIPIOS.includes(d.municipio)) return `El municipio ${d.municipio} no existe.`;
+  if (d.subperfil && !SUBPERFILES[d.subperfil]) return `El subperfil ${d.subperfil} no existe.`;
   return null;
 }
 
@@ -38,6 +39,7 @@ function leerFormulario(f: FormData): Datos {
     rol: texto("rol") ?? "",
     canal: texto("canal"),
     municipio: texto("municipio"),
+    subperfil: texto("subperfil"),
   };
 }
 
@@ -61,10 +63,10 @@ export async function guardarUsuario(f: FormData) {
 
   if (id) {
     await sql`UPDATE usuarios SET cedula = ${d.cedula}, nombre = ${d.nombre}, correo = ${d.correo}, rol = ${d.rol},
-      canal = ${d.canal}, municipio = ${d.municipio} WHERE id = ${id}`;
+      canal = ${d.canal}, municipio = ${d.municipio}, subperfil = ${d.subperfil ?? null} WHERE id = ${id}`;
   } else {
-    await sql`INSERT INTO usuarios (cedula, nombre, correo, rol, canal, municipio)
-      VALUES (${d.cedula}, ${d.nombre}, ${d.correo}, ${d.rol}, ${d.canal}, ${d.municipio})`;
+    await sql`INSERT INTO usuarios (cedula, nombre, correo, rol, canal, municipio, subperfil)
+      VALUES (${d.cedula}, ${d.nombre}, ${d.correo}, ${d.rol}, ${d.canal}, ${d.municipio}, ${d.subperfil ?? null})`;
   }
   revalidatePath("/admin/usuarios");
   aUsuarios("ok", "Usuario guardado.");

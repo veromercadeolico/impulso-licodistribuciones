@@ -222,3 +222,6 @@ ALTER TABLE usuarios ADD CONSTRAINT usuarios_rol_check CHECK (rol IN ('admin','t
 -- Competencia y publicidad del establecimiento en el reporte de ventas (noviembre 2026). Columnas nuevas y vacías: no cambian datos existentes.
 ALTER TABLE reportes_venta ADD COLUMN IF NOT EXISTS competencia jsonb;
 ALTER TABLE reportes_venta ADD COLUMN IF NOT EXISTS publicidad text;
+
+-- Subperfil de cada persona del equipo (Impulso, Bodega, Oficina, Mercadeo). Columna nueva y vacía (noviembre 2026).
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS subperfil text;

@@ -2,7 +2,7 @@ import { BotonCopiar } from "@/components/BotonCopiar";
 import { Avisos, Encabezado, Insignia, Tarjeta } from "@/components/ui";
 import { exigirRol } from "@/lib/auth";
 import { sql } from "@/lib/db";
-import { MUNICIPIOS, ROLES } from "@/lib/formato";
+import { MUNICIPIOS, ROLES, SUBPERFILES } from "@/lib/formato";
 import { cambiarActivo, guardarUsuario, importarUsuarios, rolesQuePuedeGestionar } from "../acciones";
 
 type Fila = Record<string, string | null>;
@@ -43,6 +43,13 @@ function Campos({ u, canales, roles }: { u?: Fila; canales: Fila[]; roles: strin
           {MUNICIPIOS.map((m) => <option key={m}>{m}</option>)}
         </select>
       </div>
+      <div>
+        <label htmlFor={`sub-${k}`} className="etiqueta">Subperfil</label>
+        <select id={`sub-${k}`} name="subperfil" defaultValue={u?.subperfil ?? ""} className="campo">
+          <option value="">Sin subperfil</option>
+          {Object.entries(SUBPERFILES).map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+        </select>
+      </div>
     </div>
   );
 }
@@ -52,7 +59,7 @@ export default async function UsuariosPage({ searchParams }: { searchParams: Pro
   const roles = await rolesQuePuedeGestionar(usuario);
   const sp = await searchParams;
   const [usuarios, canales] = await Promise.all([
-    sql`SELECT u.id, u.cedula, u.nombre, u.correo, u.rol, u.canal, u.municipio, u.activo, c.nombre AS canal_nombre
+    sql`SELECT u.id, u.cedula, u.nombre, u.correo, u.rol, u.canal, u.municipio, u.subperfil, u.activo, c.nombre AS canal_nombre
       FROM usuarios u LEFT JOIN canales c ON c.codigo = u.canal
       WHERE u.rol = ANY(${roles}) ORDER BY u.activo DESC, u.rol DESC, u.nombre`,
     sql`SELECT codigo, nombre FROM canales ORDER BY orden`,
@@ -120,6 +127,7 @@ export default async function UsuariosPage({ searchParams }: { searchParams: Pro
                 </span>
                 <span className="flex items-center gap-1.5">
                   <Insignia tono="marca">{ROLES[u.rol]}</Insignia>
+                  {u.subperfil && <Insignia>{SUBPERFILES[u.subperfil] ?? u.subperfil}</Insignia>}
                   {!u.cedula && <Insignia tono="alerta">Sin cédula</Insignia>}
                   {!u.activo && <Insignia tono="error">Inactivo</Insignia>}
                 </span>

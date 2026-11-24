@@ -13,6 +13,7 @@ export function PestanasProgramacion({ periodo, activa, soloLectura = false }: {
               { id: "degustacion", texto: "Degustación", href: `/programacion/degustacion?p=${periodo}` },
             ]),
         { id: "calendario", texto: "Programación por día y canal", href: `/calendario?p=${periodo}` },
+        { id: "consolidado", texto: "Turnos por persona", href: "/programacion/turnos-persona" },
       ]}
     />
   );

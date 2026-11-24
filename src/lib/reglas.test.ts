@@ -93,12 +93,12 @@ test("sin ninguna relevancia el orden es el de llegada", () => {
   assert.deepEqual(ordenarSolicitudes(lista).map((s) => s.id), ["1", "2"]);
 });
 
-test("un turno con menos del 75 % del tiempo no cuenta como cumplido", () => {
+test("un turno con menos del 80 % del tiempo no cuenta como cumplido", () => {
   const base2 = { entrada: true, ventas: true, fueraDeRango: false, minutosProgramados: 240 };
-  assert.equal(tiempoIncompleto(179, 240), true);
-  assert.equal(tiempoIncompleto(180, 240), false);
+  assert.equal(tiempoIncompleto(191, 240), true);
+  assert.equal(tiempoIncompleto(192, 240), false);
   assert.equal(clasificarTurno({ ...base2, minutosTrabajados: 1 }), "tiempo_incompleto");
-  assert.equal(clasificarTurno({ ...base2, minutosTrabajados: 180 }), "cumplido");
+  assert.equal(clasificarTurno({ ...base2, minutosTrabajados: 192 }), "cumplido");
   assert.equal(clasificarTurno({ ...base2, fueraDeRango: true, minutosTrabajados: 1 }), "cambio_pdv");
 });
 

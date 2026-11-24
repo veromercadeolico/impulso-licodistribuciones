@@ -44,7 +44,7 @@ export default async function TurnoPage({ params, searchParams }: Props) {
   const sp = await searchParams;
   if (!/^[0-9a-f-]{36}$/.test(id)) notFound();
 
-  const [t] = await sql`SELECT t.id, t.inicio::text, t.fin::text, t.uniforme, m.nombre AS marca, p.nombre AS lugar, p.municipio,
+  const [t] = await sql`SELECT t.id, t.inicio::text, t.fin::text, t.uniforme, t.marca AS marca_codigo, m.nombre AS marca, p.nombre AS lugar, p.municipio,
       s.notas FROM turnos t JOIN puntos p ON p.id = t.punto_id JOIN marcas m ON m.codigo = t.marca
       LEFT JOIN solicitudes s ON s.id = t.solicitud_id
     WHERE t.id = ${id} AND t.impulsadora_id = ${usuario.id} AND t.publicado AND NOT t.cancelado`;
@@ -55,7 +55,7 @@ export default async function TurnoPage({ params, searchParams }: Props) {
     sql`SELECT r.enviado_en::text AS enviado, COALESCE(sum(i.cantidad), 0)::int AS total FROM reportes_venta r
       LEFT JOIN reporte_items i ON i.reporte_id = r.id WHERE r.turno_id = ${id} GROUP BY r.id`,
     sql`SELECT id, marca, presentacion, asignado, tipo FROM degustacion WHERE turno_id = ${id} ORDER BY marca, presentacion`,
-    sql`SELECT item, descripcion, marca FROM productos WHERE activo ORDER BY marca, ml, descripcion`,
+    sql`SELECT item, descripcion, marca, ean FROM productos WHERE activo ORDER BY marca, ml, descripcion`,
   ]);
   const entrada = asistencias.find((a) => a.tipo === "entrada");
   const salida = asistencias.find((a) => a.tipo === "salida");
@@ -107,7 +107,7 @@ export default async function TurnoPage({ params, searchParams }: Props) {
                 Enviado el {fechaCorta(reporte.enviado)} a las <strong className="text-tinta">{hora(reporte.enviado)}</strong> con <strong className="text-tinta">{reporte.total}</strong> unidades.
               </p>
             ) : salida ? (
-              <FormularioVentas turnoId={t.id} productos={productos} degustacion={degustacion} marcaTurno={t.marca} />
+              <FormularioVentas turnoId={t.id} productos={productos} degustacion={degustacion} marcaCodigo={t.marca_codigo} />
             ) : (
               <p className="text-sm text-suave">Disponible al finalizar el turno y registrar tu salida.</p>
             )}
