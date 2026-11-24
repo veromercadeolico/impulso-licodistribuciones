@@ -9,33 +9,72 @@ import { periodoSeleccionado } from "@/lib/periodos";
 import { ordenarSolicitudes } from "@/lib/reglas";
 import { retirarSolicitud } from "./acciones";
 
-type Params = Promise<{ p?: string; ok?: string; error?: string }>;
+type Params = Promise<{ p?: string; ok?: string; error?: string; canal?: string; estado?: string }>;
+
+const ESTADOS = [
+  { valor: "pendiente", texto: "Pendientes" },
+  { valor: "aprobada", texto: "Aprobadas" },
+  { valor: "rechazada", texto: "No aprobadas" },
+];
+
+function Filtro({ href, activo, children }: { href: string; activo: boolean; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      aria-current={activo ? "true" : undefined}
+      className={`inline-flex min-h-10 shrink-0 items-center rounded-full border px-4 text-sm font-medium whitespace-nowrap transition-colors ${
+        activo ? "border-tinta bg-tinta text-fondo" : "border-arena bg-transparent text-tinta hover:border-tinta"
+      }`}
+    >
+      {children}
+    </Link>
+  );
+}
 
 export default async function SolicitudesPage({ searchParams }: { searchParams: Params }) {
   const usuario = await exigirRol("vendedor", "trade");
+  // Trade Marketing ve las solicitudes de todos los vendedores; cada vendedor solo las suyas.
+  const veTodas = usuario.rol === "trade" || usuario.rol === "admin";
   const sp = await searchParams;
   const { actual, lista } = await periodoSeleccionado(sp.p);
   const publicado = actual.estado === "publicado";
 
-  const registros = await sql`SELECT s.id, s.fecha::text, s.hora::text, s.notas, s.prioridad, s.extemporanea, s.estado,
+  const [registros, canales] = await Promise.all([
+    sql`SELECT s.id, s.fecha::text, s.hora::text, s.notas, s.prioridad, s.extemporanea, s.estado, s.vendedor_id, s.canal AS canal_codigo,
       s.creado_en::text AS creado_orden, s.motivo_rechazo, s.obsequios, p.direccion, m.nombre AS marca, m.uniforme, c.nombre AS canal, p.nombre AS lugar, p.municipio,
-      (s.creado_en AT TIME ZONE 'America/Bogota')::text AS creado,
+      (s.creado_en AT TIME ZONE 'America/Bogota')::text AS creado, v.nombre AS vendedor,
       t.inicio::text, t.fin::text, t.publicado, u.nombre AS impulsadora,
       ct.motivo AS cambio_motivo, ct.detalle AS cambio_detalle
     FROM solicitudes s
     JOIN puntos p ON p.id = s.punto_id
     JOIN canales c ON c.codigo = s.canal
     JOIN marcas m ON m.codigo = s.marca
+    JOIN usuarios v ON v.id = s.vendedor_id
     LEFT JOIN turnos t ON t.solicitud_id = s.id AND NOT t.cancelado
     LEFT JOIN usuarios u ON u.id = t.impulsadora_id
     LEFT JOIN LATERAL (SELECT motivo, detalle FROM cambios_turno
       WHERE turno_id = t.id AND detalle NOT IN ('Turno cancelado', ${DETALLE_APROBADO_TURNO}) ORDER BY creado_en DESC LIMIT 1) ct ON true
-    WHERE s.vendedor_id = ${usuario.id} AND s.periodo_id = ${actual.id}
-    ORDER BY s.creado_en`;
-  const filas = ordenarSolicitudes(
+    WHERE (${veTodas} OR s.vendedor_id = ${usuario.id}) AND s.periodo_id = ${actual.id}
+    ORDER BY s.creado_en`,
+    sql`SELECT codigo, nombre FROM canales ORDER BY orden`,
+  ]);
+  const todas = ordenarSolicitudes(
     registros.map((s) => ({ ...s, prioridad: s.prioridad as number | null, creadoEn: s.creado_orden as string })),
   );
-  const respondidas = filas.filter((s) => (publicado || s.publicado) && s.estado !== "pendiente");
+  const canal = veTodas && canales.some((c) => c.codigo === sp.canal) ? sp.canal : undefined;
+  const estadoFiltro = veTodas && ESTADOS.some((e) => e.valor === sp.estado) ? sp.estado : undefined;
+  const filas = todas.filter((s) => (!canal || s.canal_codigo === canal) && (!estadoFiltro || s.estado === estadoFiltro));
+  const url = (cambios: { canal?: string; estado?: string }) => {
+    const q = new URLSearchParams({ p: actual.id });
+    const c = "canal" in cambios ? cambios.canal : canal;
+    const e = "estado" in cambios ? cambios.estado : estadoFiltro;
+    if (c) q.set("canal", c);
+    if (e) q.set("estado", e);
+    return `/solicitudes?${q}`;
+  };
+  const cuenta = (f: (s: (typeof todas)[number]) => boolean) => todas.filter(f).length;
+  // Trade ve el estado real de cada solicitud; el vendedor lo ve cuando se publica.
+  const respondidas = filas.filter((s) => (veTodas || publicado || s.publicado) && s.estado !== "pendiente");
   const resumen = {
     aprobadas: respondidas.filter((s) => s.estado === "aprobada").length,
     noAprobadas: respondidas.filter((s) => s.estado === "rechazada").length,
@@ -46,18 +85,39 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
   return (
     <>
       <Encabezado
-        titulo="Mis solicitudes"
-        detalle={`Recibimos solicitudes hasta el ${fechaLarga(actual.limite_solicitudes)} a las ${hora(actual.limite_solicitudes)}.`}
+        titulo={veTodas ? "Solicitudes" : "Mis solicitudes"}
+        detalle={`${veTodas ? `${todas.length} solicitudes de los vendedores. ` : ""}Se reciben hasta el ${fechaLarga(actual.limite_solicitudes)} a las ${hora(actual.limite_solicitudes)}.`}
       >
-        <SelectorPeriodo ruta="/solicitudes" actual={actual} lista={lista} />
+        <SelectorPeriodo ruta="/solicitudes" actual={actual} lista={lista} extra={{ canal, estado: estadoFiltro }} />
         <Link href="/solicitudes/nueva" className="boton">
           <Icono nombre="mas" className="size-4" /> Nueva solicitud
         </Link>
       </Encabezado>
       <Avisos ok={sp.ok} error={sp.error} />
+      {veTodas && (
+        <div className="mb-6 space-y-3">
+          <div className="sin-barra -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0" role="group" aria-label="Filtrar por canal">
+            <Filtro href={url({ canal: undefined })} activo={!canal}>Todos los canales ({todas.length})</Filtro>
+            {canales.map((c) => (
+              <Filtro key={c.codigo} href={url({ canal: c.codigo })} activo={canal === c.codigo}>
+                {c.nombre} ({cuenta((s) => s.canal_codigo === c.codigo)})
+              </Filtro>
+            ))}
+          </div>
+          <div className="sin-barra -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0" role="group" aria-label="Filtrar por estado">
+            <Filtro href={url({ estado: undefined })} activo={!estadoFiltro}>Todos los estados</Filtro>
+            {ESTADOS.map((e) => (
+              <Filtro key={e.valor} href={url({ estado: e.valor })} activo={estadoFiltro === e.valor}>
+                {e.texto} ({cuenta((s) => s.estado === e.valor && (!canal || s.canal_codigo === canal))})
+              </Filtro>
+            ))}
+          </div>
+          <p className="text-xs text-suave">Para asignar impulsadora, aprobar o no aprobar, entra a Programación.</p>
+        </div>
+      )}
       {respondidas.length > 0 && (
         <div className="mb-8 rounded-xl border border-linea bg-panel px-4 py-3">
-          <p className="font-semibold">Respuesta a tus solicitudes de esta semana</p>
+          <p className="font-semibold">{veTodas ? "Resumen de la semana" : "Respuesta a tus solicitudes de esta semana"}</p>
           <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm">
             <span className="text-ok"><strong>{resumen.aprobadas}</strong> aprobadas</span>
             {resumen.noAprobadas > 0 && <span className="text-error"><strong>{resumen.noAprobadas}</strong> no aprobadas</span>}
@@ -69,10 +129,12 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
           )}
         </div>
       )}
-      {filas.length === 0 && <Vacio>No tienes solicitudes en este periodo.</Vacio>}
+      {filas.length === 0 && (
+        <Vacio>{veTodas ? (todas.length ? "No hay solicitudes con estos filtros." : "Todavía no hay solicitudes en este periodo.") : "No tienes solicitudes en este periodo."}</Vacio>
+      )}
       <ul className="grid gap-x-6 gap-y-9 sm:grid-cols-2 lg:grid-cols-3">
         {filas.map((s, i) => {
-          const visible = publicado || s.publicado;
+          const visible = veTodas || publicado || s.publicado;
           const estado = !visible || s.estado === "pendiente" ? "En revisión" : s.estado === "aprobada" ? "Aprobada" : "No aprobada";
           return (
             <li key={s.id} className="min-w-0">
@@ -84,6 +146,7 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
                 <span className="shrink-0 text-sm text-suave">#{i + 1}</span>
               </div>
               <p className="text-sm text-suave">{s.municipio} · {s.canal}</p>
+              {veTodas && <p className="text-sm font-medium">Vendedor: {s.vendedor}</p>}
               <p className="text-sm text-suave">{fechaCorta(s.fecha)}, {hora(s.hora)}</p>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {s.prioridad && <Insignia tono="marca">Relevancia {PRIORIDADES[s.prioridad]}</Insignia>}
@@ -108,7 +171,7 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
               )}
               <div className="mt-2 flex items-center justify-between gap-2">
                 <p className="text-xs text-suave">Enviada el {fechaCorta(s.creado)} a las {hora(s.creado)}</p>
-                {s.estado === "pendiente" && !s.publicado && (
+                {s.estado === "pendiente" && !s.publicado && s.vendedor_id === usuario.id && (
                   <form action={retirarSolicitud}>
                     <input type="hidden" name="id" value={s.id} />
                     <button className="min-h-10 cursor-pointer text-sm font-semibold underline underline-offset-2">Retirar</button>
