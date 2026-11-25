@@ -182,19 +182,18 @@ test("la propuesta reparte: primero 3 por canal y jornada, y lo que sobra se rep
   assert.deepEqual(r.sinCobertura, ["5"]);
 });
 
-test("la propuesta prefiere a quien tiene menos de 3 turnos aunque viva en otra ciudad", () => {
+test("la propuesta prefiere el municipio y, entre las del municipio, a quien tiene menos de 3 turnos", () => {
   const imp = [
-    { id: "arm", nombre: "Ana", municipio: "ARMENIA" },
-    { id: "cal", nombre: "Bea", municipio: "CALARCA" },
+    { id: "arm1", nombre: "Ana", municipio: "ARMENIA" },
+    { id: "arm2", nombre: "Bea", municipio: "ARMENIA" },
+    { id: "cal", nombre: "Cata", municipio: "CALARCA" },
   ];
   const fijos = ["2026-11-27 14:00", "2026-11-27 20:00", "2026-11-28 14:00"].map((inicio) => ({
-    impulsadoraId: "arm", inicio, fin: sumarMinutos(inicio, 240),
+    impulsadoraId: "arm1", inicio, fin: sumarMinutos(inicio, 240),
   }));
-  const r = generarPropuesta(
-    [{ id: "1", municipio: "ARMENIA", prioridad: null, creadoEn: "1", inicio: "2026-11-28 20:00", fin: "2026-11-29 00:00" }],
-    imp,
-    new Set(["arm|2026-11-28|noche", "cal|2026-11-28|noche"]),
-    fijos,
-  );
-  assert.equal(r.asignaciones[0].impulsadoraId, "cal");
+  const disp = new Set(["arm1|2026-11-28|noche", "arm2|2026-11-28|noche", "cal|2026-11-28|noche"]);
+  const sol = (id: string, municipio: string) => ({ id, municipio, prioridad: null, creadoEn: id, inicio: "2026-11-28 20:00", fin: "2026-11-29 00:00" });
+  const r = generarPropuesta([sol("1", "ARMENIA"), sol("2", "ARMENIA")], imp, disp, fijos);
+  // Primero Bea (Armenia, menos de 3), luego Ana (Armenia, ya tiene 3) antes que Cata (Calarcá).
+  assert.deepEqual(r.asignaciones.map((a) => a.impulsadoraId), ["arm2", "arm1"]);
 });

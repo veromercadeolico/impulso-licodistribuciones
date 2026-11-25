@@ -135,7 +135,8 @@ const claveCanalJornada = (canal: string, inicio: string) => `${canal}|${inicio.
  * Reparto por rondas para cubrir lo más posible sin dejar canales por fuera: primero cada canal recibe hasta
  * 3 turnos por día y jornada (las primeras solicitudes en orden). Si sobran impulsadoras, se reparten otra vez
  * de a 3 por canal (hasta 6, luego 9, …) hasta que no quede nadie disponible. Entre las candidatas van primero
- * las que tienen menos de 3 turnos en la semana, para que cada impulsadora quede con mínimo 3.
+ * las que viven en el municipio del punto; luego las que tienen menos de 3 turnos en la semana (para que cada
+ * impulsadora quede con mínimo 3) y luego las que llevan menos turnos.
  */
 export function generarPropuesta(
   solicitudes: SolicitudPropuesta[],
@@ -189,7 +190,7 @@ export function generarPropuesta(
         const minimoB = b.carga < MINIMO_TURNOS_IMPULSADORA ? 0 : 1;
         const localA = a.imp.municipio === solicitud.municipio ? 0 : 1;
         const localB = b.imp.municipio === solicitud.municipio ? 0 : 1;
-        return minimoA - minimoB || localA - localB || a.carga - b.carga || a.imp.nombre.localeCompare(b.imp.nombre);
+        return localA - localB || minimoA - minimoB || a.carga - b.carga || a.imp.nombre.localeCompare(b.imp.nombre);
       });
 
     return candidatas[0];
