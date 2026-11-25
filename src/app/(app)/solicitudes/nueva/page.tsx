@@ -59,19 +59,27 @@ export default async function NuevaSolicitudPage({ searchParams }: { searchParam
               ))}
             </select>
           </div>
-          <fieldset>
+          <fieldset className="min-w-0">
             <legend className="etiqueta">Marcas a activar</legend>
-            <p className="mb-2 text-xs text-suave">Puedes elegir varias. Se programa una impulsadora por cada marca.</p>
+            <p className="mb-2 text-xs text-suave">
+              Puedes elegir varias marcas y cuántas impulsadoras necesitas de cada una en el mismo lugar.
+            </p>
             <div className="grid gap-2 sm:grid-cols-2">
               {marcas.map((m) => (
-                <label key={m.codigo} className="flex min-h-12 cursor-pointer items-center gap-3 rounded-lg border border-linea bg-white px-3 py-2 text-sm has-[:checked]:border-tinta has-[:checked]:bg-gris">
-                  <input type="checkbox" name="marca" value={m.codigo} className="size-5 accent-marca" />
-                  <span className="min-w-0 flex-1">{m.nombre}</span>
-                  <Uniforme codigo={m.uniforme} />
-                  <span className="sr-only">uniforme {COLOR_UNIFORME[m.uniforme]}</span>
-                </label>
+                <div key={m.codigo} className="flex min-h-12 items-center gap-2 rounded-lg border border-linea bg-white px-3 py-2 text-sm has-[:checked]:border-tinta has-[:checked]:bg-gris">
+                  <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
+                    <input type="checkbox" name="marca" value={m.codigo} className="size-5 accent-marca" />
+                    <span className="min-w-0 flex-1">{m.nombre}</span>
+                    <Uniforme codigo={m.uniforme} />
+                    <span className="sr-only">uniforme {COLOR_UNIFORME[m.uniforme]}</span>
+                  </label>
+                  <select name={`cant_${m.codigo}`} defaultValue="1" aria-label={`Impulsadoras de ${m.nombre}`} title="Impulsadoras" className="campo w-16 shrink-0 px-2">
+                    {[1, 2, 3, 4, 5, 6].map((n) => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                </div>
               ))}
             </div>
+            <p className="mt-1 text-xs text-suave">El número al lado de cada marca es cuántas impulsadoras de esa marca. Cada una es un turno.</p>
           </fieldset>
           <div>
             <label htmlFor="lugar" className="etiqueta">Lugar o establecimiento</label>

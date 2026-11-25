@@ -56,11 +56,13 @@ export async function crearSolicitud(datos: FormData) {
   // Trade Marketing arma la programación: sus solicitudes nunca son extemporáneas.
   const esTrade = usuario.rol === "trade";
   const extemporanea = !esTrade && `${ahoraBogota()}:00` > periodo.limite_solicitudes.slice(0, 19);
-  // Cada marca es una solicitud propia (una impulsadora por uniforme); el grupo las mantiene unidas.
-  const grupo = marcas.length > 1 ? randomUUID() : null;
+  // Una solicitud por impulsadora: cada marca se repite tantas veces como impulsadoras pidieron (1 a 6).
+  // El grupo las mantiene unidas.
+  const unidades = marcas.flatMap((m) => Array<string>(Math.min(6, Math.max(1, Math.trunc(Number(datos.get(`cant_${m}`))) || 1))).fill(m));
+  const grupo = unidades.length > 1 ? randomUUID() : null;
 
   await sql.transaction(
-    marcas.map(
+    unidades.map(
       (marca) => sql`INSERT INTO solicitudes (periodo_id, vendedor_id, canal, fecha, hora, marca, punto_id, notas, obsequios, prioridad, extemporanea, grupo, servicio, degustacion_pedida)
         VALUES (${periodo.id}, ${usuario.id}, ${canal}, ${fecha}, ${hora}, ${marca}, ${punto.id}, ${notas}, ${obsequios}, ${prioridad}, ${extemporanea}, ${grupo}, ${servicio}, ${degustacionPedida}::jsonb)`,
     ),
@@ -76,10 +78,10 @@ export async function crearSolicitud(datos: FormData) {
     });
   }
   revalidatePath("/solicitudes");
-  const cuantas = marcas.length > 1 ? `Se enviaron ${marcas.length} solicitudes, una por marca` : "Solicitud enviada";
+  const cuantas = unidades.length > 1 ? `Se enviaron ${unidades.length} solicitudes, una por impulsadora` : "Solicitud enviada";
   if (esTrade) {
     // Trade va sumando solicitudes y las ve consolidadas en Programación.
-    const msg = marcas.length > 1 ? `Se agregaron ${marcas.length} solicitudes a la programación, una por marca.` : "Solicitud agregada a la programación.";
+    const msg = unidades.length > 1 ? `Se agregaron ${unidades.length} solicitudes a la programación, una por impulsadora.` : "Solicitud agregada a la programación.";
     if (datos.get("despues") === "otra") redirect(`/solicitudes/nueva?ok=${encodeURIComponent(msg)}`);
     redirect(`/programacion?p=${periodo.id}&ok=${encodeURIComponent(msg)}`);
   }
