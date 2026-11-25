@@ -328,9 +328,11 @@ export default async function ProgramacionPage({ searchParams }: { searchParams:
             </details>
           );
           const items = degustacion.filter((d) => d.turno_id === s.turno_id);
-          const editorDegustacion = esSupervision && s.turno_id && (
+          // Trade y Supervisión cambian la degustación del turno desde la tarjeta de la solicitud.
+          const editorDegustacion = s.turno_id && (
             <div className="mt-4 rounded-lg border border-linea p-3">
               <p className="text-sm font-semibold">Degustación y obsequios</p>
+              <p className="text-xs text-suave">Para cambiar una cantidad, quita la que está con la × y asigna la nueva, o asigna la misma marca y presentación con otra cantidad.</p>
               {items.length === 0 && <p className="mt-1 text-xs text-suave">Sin degustación ni obsequios asignados.</p>}
               <ul className="mt-2 flex flex-wrap gap-2">
                 {items.map((d) => (
