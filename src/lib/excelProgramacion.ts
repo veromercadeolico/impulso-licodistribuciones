@@ -1,5 +1,6 @@
 import ExcelJS from "exceljs";
 import { hora } from "./formato";
+import { aMinutos, DESCANSO_MINIMO_MIN } from "./reglas";
 
 // Reproduce la plantilla "PROGRAMACION NOVIEMBRE 2026-SEM 3.xlsx" de Trade Marketing.
 const VERDE = "FF385623";
@@ -464,6 +465,70 @@ function hojaSolicitudes(libro: ExcelJS.Workbook, solicitudes: SolicitudExcel[])
   hoja.autoFilter = { from: { row: 1, column: 1 }, to: { row: Math.max(solicitudes.length + 1, 1), column: columnas.length } };
 }
 
+/**
+ * Hoja para revisar un día: cada impulsadora con sus turnos en orden y el descanso entre ellos.
+ * Marca en rojo cuando hay menos de 1 h 30 entre un turno y el siguiente, y lista lo que quedó sin impulsadora.
+ */
+function hojaRevision(libro: ExcelJS.Workbook, turnos: TurnoExcel[], solicitudes: SolicitudExcel[]) {
+  const hoja = libro.addWorksheet("REVISION", { views: [{ state: "frozen", ySplit: 1 }] });
+  const columnas = ["IMPULSADORA", "HORARIO", "LUGAR", "CIUDAD", "MARCA", "DESCANSO ANTES", "REVISION"];
+  const anchos = [34, 22, 42, 16, 28, 18, 30];
+  anchos.forEach((w, i) => (hoja.getColumn(i + 1).width = w));
+  columnas.forEach((t, i) => {
+    const c = hoja.getRow(1).getCell(i + 1);
+    c.value = t;
+    estilo(c, { fondo: VERDE, color: CREMA, negrita: true });
+  });
+  const porPersona = new Map<string, TurnoExcel[]>();
+  for (const t of turnos) porPersona.set(t.impulsadora, [...(porPersona.get(t.impulsadora) ?? []), t]);
+  let fila = 2;
+  let problemas = 0;
+  for (const [nombre, propios] of [...porPersona].sort(([a], [b]) => a.localeCompare(b))) {
+    propios.sort((a, b) => (a.inicio < b.inicio ? -1 : 1));
+    propios.forEach((t, i) => {
+      const descanso = i === 0 ? null : aMinutos(t.inicio) - aMinutos(propios[i - 1].fin);
+      const corto = descanso !== null && descanso < DESCANSO_MINIMO_MIN;
+      if (corto) problemas++;
+      const valores = [
+        i === 0 ? nombre : "",
+        `${hora(t.inicio)} a ${hora(t.fin)}`,
+        t.lugar,
+        t.municipio,
+        t.marca,
+        descanso === null ? "–" : `${Math.floor(descanso / 60)} h ${String(descanso % 60).padStart(2, "0")} min`,
+        descanso === null ? "" : corto ? "MENOS DE 1 H 30" : "OK",
+      ];
+      valores.forEach((v, j) => {
+        const c = hoja.getRow(fila).getCell(j + 1);
+        c.value = v;
+        estilo(c, { tam: 12, h: "left", negrita: j === 0 || (j === 6 && corto), color: j === 6 && corto ? ROJO : NEGRO, fondo: corto ? "FFFFE0E0" : undefined });
+      });
+      fila++;
+    });
+  }
+  const sinImpulsadora = solicitudes.filter((s) => !s.impulsadora && s.estado !== "rechazada");
+  fila++;
+  const resumen = [
+    `Turnos del día: ${turnos.length}`,
+    problemas ? `Descansos de menos de 1 h 30: ${problemas}` : "Todas las impulsadoras tienen al menos 1 h 30 entre turnos.",
+    `Solicitudes sin impulsadora: ${sinImpulsadora.length}`,
+  ];
+  for (const r of resumen) {
+    const c = hoja.getRow(fila++).getCell(1);
+    c.value = r;
+    estilo(c, { tam: 12, h: "left", negrita: true, color: r.startsWith("Descansos") ? ROJO : NEGRO });
+  }
+  for (const s of sinImpulsadora) {
+    const valores = ["SIN IMPULSADORA", `${hora(`${s.fecha} ${s.hora}`)}`, s.lugar, s.municipio, s.marca];
+    valores.forEach((v, j) => {
+      const c = hoja.getRow(fila).getCell(j + 1);
+      c.value = v;
+      estilo(c, { tam: 12, h: "left", negrita: j === 0, color: j === 0 ? ROJO : NEGRO });
+    });
+    fila++;
+  }
+}
+
 export async function crearExcelProgramacion(d: {
   turnos: TurnoExcel[];
   degustacion: DegustacionExcel[];
@@ -472,12 +537,15 @@ export async function crearExcelProgramacion(d: {
   canales: CanalExcel[];
   disponibilidad: DisponibilidadExcel[];
   oficina: Map<string, number>;
+  /** Excel de revisión de un solo día: sin la hoja de ejecución semanal y con la hoja REVISION. */
+  soloDia?: string | null;
 }) {
   const libro = new ExcelJS.Workbook();
   libro.creator = "Impulso Lico Distribuciones";
   const disponibles = new Set(d.disponibilidad.map((x) => `${x.nombre}|${x.fecha}|${x.franja}`));
 
-  hojaEjecucion(libro, d.canales);
+  if (d.soloDia) hojaRevision(libro, d.turnos, d.solicitudes);
+  else hojaEjecucion(libro, d.canales);
   const dias = [...new Set(d.turnos.map((t) => t.dia))].sort();
   for (const dia of dias) {
     hojaDia(libro, dia, d.turnos.filter((t) => t.dia === dia), d.degustacion, d.impulsadoras, disponibles);

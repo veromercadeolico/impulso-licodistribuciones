@@ -87,7 +87,7 @@ export async function proponerProgramacion(datos: FormData) {
       WHERE s.periodo_id = ${periodoId} AND s.estado = 'pendiente'
         AND NOT EXISTS (SELECT 1 FROM turnos t WHERE t.solicitud_id = s.id)`,
     sql`SELECT id, nombre, municipio FROM usuarios WHERE rol = 'impulsadora' AND activo`,
-    sql`SELECT impulsadora_id, inicio::text, fin::text FROM turnos WHERE periodo_id = ${periodoId} AND NOT cancelado`,
+    sql`SELECT impulsadora_id, inicio::text, fin::text, canal FROM turnos WHERE periodo_id = ${periodoId} AND NOT cancelado`,
     disponiblesDe(periodoId),
   ]);
 
@@ -102,13 +102,14 @@ export async function proponerProgramacion(datos: FormData) {
         prioridad: s.prioridad,
         creadoEn: s.creado,
         municipio: s.municipio,
+        canal: s.canal,
         inicio,
         fin: sumarMinutos(inicio, DURACION_TURNO_MIN),
       };
     }),
     impulsadoras,
     disponibles,
-    fijos.map((f) => ({ impulsadoraId: f.impulsadora_id, inicio: f.inicio, fin: f.fin })),
+    fijos.map((f) => ({ impulsadoraId: f.impulsadora_id, inicio: f.inicio, fin: f.fin, canal: f.canal })),
   );
 
   const filas = asignaciones.map((a) => {

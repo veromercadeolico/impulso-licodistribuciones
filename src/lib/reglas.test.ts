@@ -165,3 +165,36 @@ test("el periodo va de jueves a miércoles y cierra el miércoles anterior al me
   assert.deepEqual(periodoDeFecha("2026-11-22"), esperado);
   assert.deepEqual(periodoDeFecha("2026-11-25"), esperado);
 });
+
+test("la propuesta reparte: primero 3 por canal y jornada, y lo que sobra se reparte después", () => {
+  const imp = ["a", "b", "c", "d", "e"].map((id) => ({ id, nombre: id, municipio: "ARMENIA" }));
+  const disp = new Set(imp.map((i) => `${i.id}|2026-11-28|noche`));
+  const s = (id: string, canal: string) => ({
+    id, canal, municipio: "ARMENIA", prioridad: null, creadoEn: id, inicio: "2026-11-28 20:00", fin: "2026-11-29 00:00",
+  });
+  const r = generarPropuesta(
+    [s("1", "CONSUMO"), s("2", "CONSUMO"), s("3", "CONSUMO"), s("4", "CONSUMO"), s("5", "CONSUMO"), s("6", "EVENTOS")],
+    imp,
+    disp,
+  );
+  // Eventos llegó de último pero entra en la primera ronda; la 4 de Consumo usa la impulsadora que sobró.
+  assert.deepEqual(r.asignaciones.map((a) => a.solicitudId), ["1", "2", "3", "6", "4"]);
+  assert.deepEqual(r.sinCobertura, ["5"]);
+});
+
+test("la propuesta prefiere a quien tiene menos de 3 turnos aunque viva en otra ciudad", () => {
+  const imp = [
+    { id: "arm", nombre: "Ana", municipio: "ARMENIA" },
+    { id: "cal", nombre: "Bea", municipio: "CALARCA" },
+  ];
+  const fijos = ["2026-11-27 14:00", "2026-11-27 20:00", "2026-11-28 14:00"].map((inicio) => ({
+    impulsadoraId: "arm", inicio, fin: sumarMinutos(inicio, 240),
+  }));
+  const r = generarPropuesta(
+    [{ id: "1", municipio: "ARMENIA", prioridad: null, creadoEn: "1", inicio: "2026-11-28 20:00", fin: "2026-11-29 00:00" }],
+    imp,
+    new Set(["arm|2026-11-28|noche", "cal|2026-11-28|noche"]),
+    fijos,
+  );
+  assert.equal(r.asignaciones[0].impulsadoraId, "cal");
+});

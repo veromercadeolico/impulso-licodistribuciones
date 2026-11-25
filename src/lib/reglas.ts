@@ -112,30 +112,69 @@ export function ordenarSolicitudes<T extends SolicitudOrden>(lista: T[]): T[] {
   return llegada.map((s) => (s.prioridad == null ? s : conRelevancia[siguiente++]));
 }
 
+/** Máximo de turnos que la propuesta asigna por canal, por día y por jornada (tarde o noche). */
+export const MAX_TURNOS_CANAL_JORNADA = 3;
+/** Turnos mínimos que la propuesta busca darle a cada impulsadora en la semana. */
+export const MINIMO_TURNOS_IMPULSADORA = 3;
+
 export type SolicitudPropuesta = SolicitudOrden & {
   id: string;
   municipio: string;
   inicio: string;
   fin: string;
+  canal?: string;
 };
 export type ImpulsadoraPropuesta = { id: string; nombre: string; municipio: string | null };
 export type Asignacion = { solicitudId: string; impulsadoraId: string; alertas: Alerta[] };
 
+const claveCanalJornada = (canal: string, inicio: string) => `${canal}|${inicio.slice(0, 10)}|${franjaDe(inicio)}`;
+
 /**
  * Arma el borrador: atiende las solicitudes en orden de relevancia y elige, entre las disponibles
  * que respetan el descanso, primero a quien vive en el municipio y luego a quien lleva menos turnos.
+ * Reparto por rondas para cubrir lo más posible sin dejar canales por fuera: primero cada canal recibe hasta
+ * 3 turnos por día y jornada (las primeras solicitudes en orden). Si sobran impulsadoras, se reparten otra vez
+ * de a 3 por canal (hasta 6, luego 9, …) hasta que no quede nadie disponible. Entre las candidatas van primero
+ * las que tienen menos de 3 turnos en la semana, para que cada impulsadora quede con mínimo 3.
  */
 export function generarPropuesta(
   solicitudes: SolicitudPropuesta[],
   impulsadoras: ImpulsadoraPropuesta[],
   disponibles: Set<string>,
-  turnosFijos: TurnoHorario[] = [],
+  turnosFijos: (TurnoHorario & { canal?: string })[] = [],
 ): { asignaciones: Asignacion[]; sinCobertura: string[] } {
   const ocupados = [...turnosFijos];
   const asignaciones: Asignacion[] = [];
   const sinCobertura: string[] = [];
+  const porCanalJornada = new Map<string, number>();
+  for (const t of turnosFijos) {
+    if (t.canal) porCanalJornada.set(claveCanalJornada(t.canal, t.inicio), (porCanalJornada.get(claveCanalJornada(t.canal, t.inicio)) ?? 0) + 1);
+  }
 
-  for (const solicitud of ordenarSolicitudes(solicitudes)) {
+  const pendientes = ordenarSolicitudes(solicitudes);
+  const asignadas = new Set<string>();
+  for (let limite = MAX_TURNOS_CANAL_JORNADA; limite <= MAX_TURNOS_CANAL_JORNADA * (solicitudes.length + 1); limite += MAX_TURNOS_CANAL_JORNADA) {
+    let quedan = false;
+    for (const solicitud of pendientes) {
+      if (asignadas.has(solicitud.id)) continue;
+      const clave = solicitud.canal ? claveCanalJornada(solicitud.canal, solicitud.inicio) : null;
+      if (clave && (porCanalJornada.get(clave) ?? 0) >= limite) {
+        quedan = true;
+        continue;
+      }
+      const elegida = elegirImpulsadora(solicitud);
+      if (!elegida) continue;
+      asignadas.add(solicitud.id);
+      ocupados.push({ impulsadoraId: elegida.imp.id, inicio: solicitud.inicio, fin: solicitud.fin });
+      if (clave) porCanalJornada.set(clave, (porCanalJornada.get(clave) ?? 0) + 1);
+      asignaciones.push({ solicitudId: solicitud.id, impulsadoraId: elegida.imp.id, alertas: elegida.alertas });
+    }
+    if (!quedan) break;
+  }
+  for (const s of pendientes) if (!asignadas.has(s.id)) sinCobertura.push(s.id);
+  return { asignaciones, sinCobertura };
+
+  function elegirImpulsadora(solicitud: SolicitudPropuesta) {
     const candidatas = impulsadoras
       .filter((imp) => disponibles.has(claveDisponibilidad(imp.id, solicitud.inicio)))
       .map((imp) => {
@@ -146,20 +185,15 @@ export function generarPropuesta(
       })
       .filter((c) => !c.alertas.some((a) => a.codigo === "CRUCE" || a.codigo === "DESCANSO"))
       .sort((a, b) => {
+        const minimoA = a.carga < MINIMO_TURNOS_IMPULSADORA ? 0 : 1;
+        const minimoB = b.carga < MINIMO_TURNOS_IMPULSADORA ? 0 : 1;
         const localA = a.imp.municipio === solicitud.municipio ? 0 : 1;
         const localB = b.imp.municipio === solicitud.municipio ? 0 : 1;
-        return localA - localB || a.carga - b.carga || a.imp.nombre.localeCompare(b.imp.nombre);
+        return minimoA - minimoB || localA - localB || a.carga - b.carga || a.imp.nombre.localeCompare(b.imp.nombre);
       });
 
-    const elegida = candidatas[0];
-    if (!elegida) {
-      sinCobertura.push(solicitud.id);
-      continue;
-    }
-    ocupados.push({ impulsadoraId: elegida.imp.id, inicio: solicitud.inicio, fin: solicitud.fin });
-    asignaciones.push({ solicitudId: solicitud.id, impulsadoraId: elegida.imp.id, alertas: elegida.alertas });
+    return candidatas[0];
   }
-  return { asignaciones, sinCobertura };
 }
 
 export type EstadoCumplimiento =

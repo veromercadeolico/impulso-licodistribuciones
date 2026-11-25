@@ -4,7 +4,7 @@ import { FiltroSolicitudes } from "@/components/FiltroSolicitudes";
 import { Avisos, Encabezado, Insignia, Kpi, SelectorPeriodo, Tarjeta, Uniforme, Vacio } from "@/components/ui";
 import { exigirRol } from "@/lib/auth";
 import { sql } from "@/lib/db";
-import { fechaCorta, hora, PRESENTACIONES, PRIORIDADES } from "@/lib/formato";
+import { fechaCorta, hora, PRESENTACIONES, PRIORIDADES, sumarDias } from "@/lib/formato";
 import { periodoSeleccionado } from "@/lib/periodos";
 import { DIAS_ALERTA_REPORTE, franjaDe, ordenarSolicitudes, sumarMinutos, type Alerta } from "@/lib/reglas";
 import { DETALLE_APROBADO_TURNO, pasosPermitidos, puedeEditar, puedePublicar, type EstadoFlujo } from "@/lib/flujo";
@@ -234,6 +234,19 @@ export default async function ProgramacionPage({ searchParams }: { searchParams:
             <a href={`/api/programacion/excel?p=${actual.id}`} className="boton-sec w-full">
               Descargar Excel
             </a>
+            <details className="rounded-lg border border-linea bg-white px-3 py-2">
+              <summary className="cursor-pointer text-sm font-semibold">Excel por día para revisar</summary>
+              <p className="mt-1 text-xs text-suave">
+                Incluye la propuesta aunque todavía no esté aprobada, y una hoja REVISION con el descanso entre turnos de cada impulsadora.
+              </p>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {Array.from({ length: 7 }, (_, i) => sumarDias(actual.fecha_inicio, i)).map((d) => (
+                  <a key={d} href={`/api/programacion/excel?p=${actual.id}&dia=${d}`} className="boton-sec text-sm">
+                    {fechaCorta(d)}
+                  </a>
+                ))}
+              </div>
+            </details>
             {esTrade && !soloLectura && (
               <>
             <form action={proponerProgramacion}>
