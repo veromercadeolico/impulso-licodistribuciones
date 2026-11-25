@@ -3,7 +3,8 @@ import { Icono } from "@/components/iconos";
 import { Encabezado, Insignia, Tarjeta, Vacio } from "@/components/ui";
 import { exigirRol } from "@/lib/auth";
 import { bloqueFinDeSemana, esClaveMes, esFecha, finesDeSemana, mesDe, mesesCerca, nombreBloque, viernesDe } from "@/lib/calendario";
-import { consolidar, MINUTOS_POR_TURNO, type FilaConsolidado } from "@/lib/consolidado";
+import { consolidar, type FilaConsolidado } from "@/lib/consolidado";
+import { duracionTurno } from "@/lib/reglas";
 import { sql } from "@/lib/db";
 import { duracion, fechaCorta, hoyBogota, numero, SUBPERFILES } from "@/lib/formato";
 import { periodoSeleccionado } from "@/lib/periodos";
@@ -63,7 +64,7 @@ function Tabla({ filas }: { filas: FilaConsolidado[] }) {
             <td className="num">{suma("programados")}</td>
             <td className="num">{suma("completos")}</td>
             <td className="num">{duracion(minutos)}</td>
-            <td className="num">{numero(Math.round((minutos / MINUTOS_POR_TURNO) * 10) / 10, 1)}</td>
+            <td className="num">{numero(Math.round(suma("turnos") * 10) / 10, 1)}</td>
             <td />
           </tr>
         </tbody>
@@ -89,7 +90,7 @@ export default async function TurnosPorPersonaPage({ searchParams }: { searchPar
   const rango = vista === "mes" ? { inicio: mes.inicio, fin: mes.fin, nombre: `Mes de ${mes.nombre}` }
     : { inicio: bloque.inicio, fin: bloque.fin, nombre: `Fin de semana ${nombreBloque(bloque, fechaCorta)}` };
 
-  const registros = await sql`SELECT u.id AS persona_id, u.nombre, u.subperfil, t.servicio,
+  const registros = await sql`SELECT u.id AS persona_id, u.nombre, u.subperfil, t.servicio, t.canal,
       to_char(t.inicio, 'YYYY-MM-DD HH24:MI') AS inicio, to_char(t.fin, 'YYYY-MM-DD HH24:MI') AS fin,
       (SELECT registrado_en::text FROM asistencias a WHERE a.turno_id = t.id AND a.tipo = 'entrada') AS entrada,
       (SELECT registrado_en::text FROM asistencias a WHERE a.turno_id = t.id AND a.tipo = 'salida') AS salida
@@ -103,8 +104,8 @@ export default async function TurnosPorPersonaPage({ searchParams }: { searchPar
   const todos = [
     // El bartender no registra entrada ni salida: cuenta con las horas programadas del turno.
     ...registros.map((r) => r.servicio === "bartender"
-      ? { area: "bartender", personaId: r.persona_id, nombre: r.nombre, subperfil: r.subperfil, inicio: r.inicio, fin: r.fin, entrada: r.inicio, salida: r.fin }
-      : { area: "impulso", personaId: r.persona_id, nombre: r.nombre, subperfil: r.subperfil, inicio: r.inicio, fin: r.fin, entrada: r.entrada, salida: r.salida }),
+      ? { area: "bartender", personaId: r.persona_id, nombre: r.nombre, subperfil: r.subperfil, inicio: r.inicio, fin: r.fin, entrada: r.inicio, salida: r.fin, minutosTurno: duracionTurno(r.canal, r.inicio) }
+      : { area: "impulso", personaId: r.persona_id, nombre: r.nombre, subperfil: r.subperfil, inicio: r.inicio, fin: r.fin, entrada: r.entrada, salida: r.salida, minutosTurno: duracionTurno(r.canal, r.inicio) }),
     ...registrosArea.map((r) => ({ area: r.area as string, personaId: r.persona_id, nombre: r.nombre, subperfil: r.subperfil, inicio: r.inicio, fin: r.inicio, entrada: r.entrada, salida: r.salida })),
   ];
   const filas = consolidar(todos);
@@ -115,7 +116,7 @@ export default async function TurnosPorPersonaPage({ searchParams }: { searchPar
 
   return (
     <>
-      <Encabezado titulo="Turnos por persona" detalle={`${rango.nombre} · 1 turno = 4 horas reales entre entrada y salida`}>
+      <Encabezado titulo="Turnos por persona" detalle={`${rango.nombre} · 1 turno = 4 horas reales entre entrada y salida (Consumo en la noche: 3 h 30)`}>
         {vista === "finde" ? (
           <Selector nombre="f" etiqueta="Fin de semana" valor={bloque.inicio} vista="finde"
             opciones={fines.sort((a, b) => b.inicio.localeCompare(a.inicio)).map((b) => ({ valor: b.inicio, texto: nombreBloque(b, fechaCorta) }))} />

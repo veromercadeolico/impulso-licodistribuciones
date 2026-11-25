@@ -249,3 +249,14 @@ test("bloquea municipios y sectores sin impulso en la semana indicada", async ()
   assert.equal(sinImpulsoEstaSemana("2026-11-26", ["ARMENIA", "Éxito Centro", null]), false);
   assert.equal(sinImpulsoEstaSemana("2026-12-03", ["CIRCASIA", "Barkasa", null]), false);
 });
+
+test("Consumo en la noche dura 3 h 30 sin alerta; los demás deben durar 4 h", async () => {
+  const { duracionTurno } = await import("./reglas.ts");
+  assert.equal(duracionTurno("CONSUMO", "2026-11-28 21:00"), 210);
+  assert.equal(duracionTurno("CONSUMO", "2026-11-28 12:00"), 240);
+  assert.equal(duracionTurno("TAT", "2026-11-28 20:00"), 240);
+  const ctx = { municipioImpulsadora: "ARMENIA", disponible: true };
+  const consumo = { impulsadoraId: "a", municipio: "ARMENIA", canal: "CONSUMO", inicio: "2026-11-28 21:00", fin: "2026-11-29 00:30" };
+  assert.deepEqual(codigos(evaluarTurno(consumo, [], ctx)), []);
+  assert.deepEqual(codigos(evaluarTurno({ ...consumo, canal: "TAT" }, [], ctx)), ["DURACION"]);
+});

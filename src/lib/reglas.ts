@@ -42,8 +42,15 @@ function texto(minutos: number): string {
   return m ? `${h} h ${m} min` : `${h} h`;
 }
 
+/** Consumo en la noche va de 9:00 PM a 12:30 AM (3 h 30) y cuenta como un turno completo. */
+export const DURACION_CONSUMO_NOCHE_MIN = 210;
+/** Duración que debe tener el turno según el canal y la hora: 4 h, o 3 h 30 en Consumo en la noche. */
+export function duracionTurno(canal: string | null | undefined, inicio: string): number {
+  return canal === "CONSUMO" && franjaDe(inicio) === "noche" ? DURACION_CONSUMO_NOCHE_MIN : DURACION_TURNO_MIN;
+}
+
 export function evaluarTurno(
-  turno: TurnoHorario & { municipio: string },
+  turno: TurnoHorario & { municipio: string; canal?: string | null },
   otros: TurnoHorario[],
   contexto: { municipioImpulsadora: string | null; disponible: boolean },
 ): Alerta[] {
@@ -51,11 +58,12 @@ export function evaluarTurno(
   const inicio = aMinutos(turno.inicio);
   const fin = aMinutos(turno.fin);
   const duracion = fin - inicio;
+  const esperada = duracionTurno(turno.canal, turno.inicio);
 
-  if (duracion !== DURACION_TURNO_MIN) {
+  if (duracion !== esperada) {
     alertas.push({
       codigo: "DURACION",
-      mensaje: `El turno dura ${texto(duracion)} y debe durar 4 h.`,
+      mensaje: `El turno dura ${texto(duracion)} y debe durar ${texto(esperada)}.`,
       requiereMotivo: true,
     });
   }
@@ -171,7 +179,7 @@ export const DEGUSTACION_POR_CANAL: Record<string, { presentacion: string; canti
   FIESTAS: { presentacion: "Botella", cantidad: 3 },
 };
 
-/** Consumo en la noche (desde las 6 PM) siempre empieza a las 9:00 PM y dura 4 horas, hasta la 1:00 AM. */
+/** Consumo en la noche (desde las 6 PM) siempre empieza a las 9:00 PM y va hasta las 12:30 AM. */
 export const HORA_CONSUMO_NOCHE = "21:00";
 export function horaSegunCanal(canal: string, hora: string): string {
   return canal === "CONSUMO" && /^\d{2}:\d{2}$/.test(hora) && hora >= "18:00" ? HORA_CONSUMO_NOCHE : hora;

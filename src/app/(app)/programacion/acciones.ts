@@ -11,7 +11,7 @@ import { notificar } from "@/lib/notificar";
 import {
   claveDisponibilidad,
   DEGUSTACION_POR_CANAL,
-  DURACION_TURNO_MIN,
+  duracionTurno,
   esConsumoTarde,
   evaluarTurno,
   generarPropuesta,
@@ -85,7 +85,7 @@ async function avisarEventosFuera(periodoId: string): Promise<number> {
 
 async function recalcularAlertas(periodoId: string) {
   const [turnos, disponibles] = await Promise.all([
-    sql`SELECT t.id, t.impulsadora_id, t.inicio::text, t.fin::text, p.municipio, u.municipio AS municipio_imp
+    sql`SELECT t.id, t.impulsadora_id, t.inicio::text, t.fin::text, t.canal, p.municipio, u.municipio AS municipio_imp
       FROM turnos t JOIN puntos p ON p.id = t.punto_id JOIN usuarios u ON u.id = t.impulsadora_id
       WHERE t.periodo_id = ${periodoId} AND NOT t.cancelado`,
     disponiblesDe(periodoId),
@@ -99,7 +99,7 @@ async function recalcularAlertas(periodoId: string) {
   const datos = turnos.map((t) => ({
     id: t.id,
     alertas: evaluarTurno(
-      { id: t.id, impulsadoraId: t.impulsadora_id, inicio: t.inicio, fin: t.fin, municipio: t.municipio },
+      { id: t.id, impulsadoraId: t.impulsadora_id, inicio: t.inicio, fin: t.fin, municipio: t.municipio, canal: t.canal },
       horarios,
       {
         municipioImpulsadora: t.municipio_imp,
@@ -149,7 +149,7 @@ export async function proponerProgramacion(datos: FormData) {
         municipio: s.municipio,
         canal: s.canal,
         inicio,
-        fin: sumarMinutos(inicio, DURACION_TURNO_MIN),
+        fin: sumarMinutos(inicio, duracionTurno(s.canal, inicio)),
       };
     }),
     impulsadoras,
@@ -247,7 +247,7 @@ export async function aprobarSolicitud(datos: FormData) {
   }
 
   const alertas = evaluarTurno(
-    { impulsadoraId, inicio, fin, municipio: s.municipio },
+    { impulsadoraId, inicio, fin, municipio: s.municipio, canal: s.canal },
     otros.map((o) => ({ id: o.id, impulsadoraId: o.impulsadora_id, inicio: o.inicio, fin: o.fin })),
     { municipioImpulsadora: imp?.municipio ?? null, disponible: disponibles.has(claveDisponibilidad(impulsadoraId, inicio)) },
   );

@@ -29,3 +29,13 @@ test("los turnos sin salida o sin entrada se marcan y no suman horas", () => {
   assert.deepEqual([bea.programados, bea.sinSalida, bea.sinEntrada, bea.minutosReales, bea.turnos], [2, 1, 1, 0, 0]);
   assert.equal(bea.minutosProgramados, 480);
 });
+
+test("un turno de Consumo en la noche de 3 h 30 cuenta como 1 turno", () => {
+  const [f] = consolidar([
+    { personaId: "p", nombre: "Ana", subperfil: "impulso", inicio: "2026-11-28 21:00", fin: "2026-11-29 00:30",
+      entrada: "2026-11-28 21:00:00", salida: "2026-11-29 00:30:00", minutosTurno: 210 },
+    { personaId: "p", nombre: "Ana", subperfil: "impulso", inicio: "2026-11-28 14:00", fin: "2026-11-28 18:00",
+      entrada: "2026-11-28 14:00:00", salida: "2026-11-28 18:00:00" },
+  ]);
+  assert.equal(f.turnos, 2);
+});

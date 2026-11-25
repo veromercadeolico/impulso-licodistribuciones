@@ -7,7 +7,7 @@ import { exigirRol } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { fechaCorta, hora, PRESENTACIONES, PRIORIDADES, sumarDias } from "@/lib/formato";
 import { periodoSeleccionado } from "@/lib/periodos";
-import { DIAS_ALERTA_REPORTE, esConsumoTarde, franjaDe, ordenarSolicitudes, sumarMinutos, type Alerta } from "@/lib/reglas";
+import { DIAS_ALERTA_REPORTE, duracionTurno, esConsumoTarde, franjaDe, ordenarSolicitudes, sumarMinutos, type Alerta } from "@/lib/reglas";
 import { DETALLE_APROBADO_TURNO, pasosPermitidos, puedeEditar, puedePublicar, type EstadoFlujo } from "@/lib/flujo";
 import { comentariosDeSemana } from "@/lib/comentarios";
 import { estadoSemana } from "@/lib/flujoSemana";
@@ -306,7 +306,7 @@ export default async function ProgramacionPage({ searchParams }: { searchParams:
           const alertas: Alerta[] = s.alertas ?? [];
           const inicioBase = `${s.fecha} ${s.hora.slice(0, 5)}`;
           const inicio = s.inicio ?? inicioBase;
-          const fin = s.fin ?? sumarMinutos(inicioBase, 240);
+          const fin = s.fin ?? sumarMinutos(inicioBase, duracionTurno(s.canal_codigo, inicioBase));
           const clave = (id: string) => `${id}|${s.fecha}|${franjaDe(inicio)}`;
           const opciones = [...impulsadoras].sort((a, b) => {
             const pa = (disponibles.has(clave(a.id)) ? 0 : 2) + (a.municipio === s.municipio ? 0 : 1);
