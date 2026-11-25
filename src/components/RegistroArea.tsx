@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { registrarTurnoArea } from "@/app/(app)/turnos/acciones";
-import { comprimir, ubicar } from "./RegistroAsistencia";
+import { comprimir, intentarUbicar } from "./RegistroAsistencia";
 
 // Impulso va primero. Los turnos de impulso siempre salen de la programación: al elegirlo no se registra aquí,
 // se lleva a la persona a su turno programado de hoy o se le avisa que no tiene.
@@ -50,21 +50,15 @@ export function RegistroArea({
     if (tipo === "entrada" && (!area || area === "impulso")) return setMensaje("Elige el área donde vas a trabajar: Bodega, Oficina o Mercadeo.");
     iniciar(async () => {
       setMensaje("Obteniendo tu ubicación…");
-      let posicion: GeolocationPosition;
-      try {
-        posicion = await ubicar();
-      } catch (e) {
-        setMensaje(e instanceof Error ? e.message : `Activa la ubicación del celular y permite el acceso para registrar tu ${tipo}.`);
-        return;
-      }
+      const ubicacion = await intentarUbicar();
       setMensaje("Enviando…");
       const r = await registrarTurnoArea({
         tipo,
         area: area ?? undefined,
         turnoAreaId,
         fotoBase64: foto.split(",")[1],
-        lat: posicion.coords.latitude,
-        lng: posicion.coords.longitude,
+        lat: ubicacion?.lat ?? null,
+        lng: ubicacion?.lng ?? null,
       });
       if (r.error) return setMensaje(r.error);
       setMensaje("");

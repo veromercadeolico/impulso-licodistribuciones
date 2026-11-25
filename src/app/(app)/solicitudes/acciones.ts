@@ -43,7 +43,9 @@ export async function crearSolicitud(datos: FormData) {
     ON CONFLICT (lower(nombre), lower(municipio)) DO UPDATE SET direccion = COALESCE(EXCLUDED.direccion, puntos.direccion)
     RETURNING id`;
   const periodo = await asegurarPeriodo(fecha);
-  const extemporanea = `${ahoraBogota()}:00` > periodo.limite_solicitudes.slice(0, 19);
+  // Trade Marketing arma la programación: sus solicitudes nunca son extemporáneas.
+  const esTrade = usuario.rol === "trade";
+  const extemporanea = !esTrade && `${ahoraBogota()}:00` > periodo.limite_solicitudes.slice(0, 19);
   // Cada marca es una solicitud propia (una impulsadora por uniforme); el grupo las mantiene unidas.
   const grupo = marcas.length > 1 ? randomUUID() : null;
 
@@ -56,6 +58,12 @@ export async function crearSolicitud(datos: FormData) {
 
   revalidatePath("/solicitudes");
   const cuantas = marcas.length > 1 ? `Se enviaron ${marcas.length} solicitudes, una por marca` : "Solicitud enviada";
+  if (esTrade) {
+    // Trade va sumando solicitudes y las ve consolidadas en Programación.
+    const msg = marcas.length > 1 ? `Se agregaron ${marcas.length} solicitudes a la programación, una por marca.` : "Solicitud agregada a la programación.";
+    if (datos.get("despues") === "otra") redirect(`/solicitudes/nueva?ok=${encodeURIComponent(msg)}`);
+    redirect(`/programacion?p=${periodo.id}&ok=${encodeURIComponent(msg)}`);
+  }
   const aviso = extemporanea
     ? `${cuantas} fuera de la fecha límite. Trade Marketing decidirá si alcanza a incluirla.`
     : `${cuantas} a Trade Marketing.`;

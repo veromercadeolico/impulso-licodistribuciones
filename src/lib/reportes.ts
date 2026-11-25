@@ -17,6 +17,7 @@ export type TurnoReporte = {
   entrada_foto: string | null;
   salida_foto: string | null;
   distancia_m: number | null;
+  sin_ubicacion: boolean;
   fuera_de_rango: boolean;
   con_ventas: boolean;
   unidades: number;
@@ -29,7 +30,7 @@ export async function turnosDelPeriodo(periodoId: string, canal?: string | null)
   const filas = await sql`SELECT t.id, t.inicio::text, t.fin::text, t.inicio::date::text AS dia, t.canal,
       c.nombre AS canal_nombre, p.nombre AS lugar, p.municipio, u.nombre AS impulsadora,
       e.registrado_en::text AS entrada_hora, s.registrado_en::text AS salida_hora,
-      e.foto_id AS entrada_foto, s.foto_id AS salida_foto, e.distancia_m,
+      e.foto_id AS entrada_foto, s.foto_id AS salida_foto, e.distancia_m, (e.id IS NOT NULL AND e.lat IS NULL) AS sin_ubicacion,
       COALESCE(e.fuera_de_rango, false) AS fuera_de_rango,
       r.id IS NOT NULL AS con_ventas,
       COALESCE((SELECT sum(i.cantidad) FROM reporte_items i WHERE i.reporte_id = r.id), 0)::int AS unidades

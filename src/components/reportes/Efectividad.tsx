@@ -184,7 +184,7 @@ export async function Efectividad({ periodoId }: { periodoId: string }) {
                       {t.entrada_hora && t.salida_hora ? duracion(aMinutos(t.salida_hora) - aMinutos(t.entrada_hora)) : "–"}
                     </td>
                     <td className="whitespace-nowrap">
-                      {!t.entrada_hora ? "–" : t.distancia_m === null ? "Punto sin ubicación" : `${numero(t.distancia_m)} m`}
+                      {!t.entrada_hora ? "–" : t.sin_ubicacion ? "Sin ubicación" : t.distancia_m === null ? "Punto sin ubicación" : `${numero(t.distancia_m)} m`}
                     </td>
                     <td>
                       {t.terminado ? (

@@ -7,9 +7,10 @@ import { crearSolicitud } from "../acciones";
 
 const COLOR_UNIFORME: Record<string, string> = { AA: "amarillo", ESE: "azul", RVC: "rojo" };
 
-export default async function NuevaSolicitudPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+export default async function NuevaSolicitudPage({ searchParams }: { searchParams: Promise<{ error?: string; ok?: string }> }) {
   const usuario = await exigirRol("vendedor", "trade");
-  const { error } = await searchParams;
+  const { error, ok } = await searchParams;
+  const esTrade = usuario.rol === "trade";
   const [canales, marcas, puntos] = await Promise.all([
     sql`SELECT codigo, nombre FROM canales ORDER BY orden`,
     sql`SELECT codigo, nombre, uniforme FROM marcas
@@ -20,7 +21,7 @@ export default async function NuevaSolicitudPage({ searchParams }: { searchParam
   return (
     <div className="mx-auto max-w-xl">
       <Encabezado titulo="Nueva solicitud" detalle="Impulso o bartender. La fecha y hora de envío se guardan automáticamente." />
-      <Avisos error={error} />
+      <Avisos ok={ok} error={error} />
       <Tarjeta>
         <form action={crearSolicitud} className="space-y-5">
           <fieldset>
@@ -110,8 +111,15 @@ export default async function NuevaSolicitudPage({ searchParams }: { searchParam
             <textarea id="notas" name="notas" rows={3} maxLength={500} className="campo" />
           </div>
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <Link href="/solicitudes" className="boton-sec">Cancelar</Link>
-            <button className="boton">Enviar solicitud</button>
+            <Link href={esTrade ? "/programacion" : "/solicitudes"} className="boton-sec">Cancelar</Link>
+            {esTrade ? (
+              <>
+                <button name="despues" value="otra" className="boton-sec">Enviar y crear otra</button>
+                <button name="despues" value="programacion" className="boton">Enviar y ver programación</button>
+              </>
+            ) : (
+              <button className="boton">Enviar solicitud</button>
+            )}
           </div>
         </form>
       </Tarjeta>

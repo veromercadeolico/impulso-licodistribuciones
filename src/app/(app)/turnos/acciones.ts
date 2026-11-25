@@ -24,14 +24,17 @@ export async function registrarAsistencia(entrada: {
   turnoId: string;
   tipo: "entrada" | "salida";
   fotoBase64: string;
-  lat: number;
-  lng: number;
+  lat: number | null;
+  lng: number | null;
 }): Promise<{ error?: string }> {
   const usuario = await exigirRol("impulsadora");
   const { turnoId, tipo, fotoBase64, lat, lng } = entrada;
   if (tipo !== "entrada" && tipo !== "salida") return { error: "Registro no válido." };
   if (!fotoBase64 || fotoBase64.length > MAX_FOTO_BASE64) return { error: "La foto no es válida o es muy pesada." };
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return { error: "No se recibió tu ubicación." };
+  // La ubicación es opcional: si el celular no la entrega, se registra sin ubicación.
+  const conUbicacion = Number.isFinite(lat) && Number.isFinite(lng);
+  const latitud = conUbicacion ? lat : null;
+  const longitud = conUbicacion ? lng : null;
 
   const turno = await turnoPropio(turnoId, usuario.id);
   if (!turno) return { error: "Este turno no está asignado a ti." };
@@ -51,13 +54,13 @@ export async function registrarAsistencia(entrada: {
     return { error: "Primero debes registrar tu entrada." };
   }
 
-  const distancia = turno.lat != null && turno.lng != null ? distanciaMetros(lat, lng, turno.lat, turno.lng) : null;
+  const distancia = conUbicacion && turno.lat != null && turno.lng != null ? distanciaMetros(lat!, lng!, turno.lat, turno.lng) : null;
   const fueraDeRango = distancia !== null && distancia > RADIO_PUNTO_M;
   const fotoId = randomUUID();
   await sql.transaction([
     sql`INSERT INTO fotos (id, contenido, mime) VALUES (${fotoId}, decode(${fotoBase64}, 'base64'), 'image/jpeg')`,
     sql`INSERT INTO asistencias (turno_id, tipo, foto_id, lat, lng, distancia_m, fuera_de_rango)
-      VALUES (${turnoId}, ${tipo}, ${fotoId}, ${lat}, ${lng}, ${distancia}, ${fueraDeRango})`,
+      VALUES (${turnoId}, ${tipo}, ${fotoId}, ${latitud}, ${longitud}, ${distancia}, ${fueraDeRango})`,
   ]);
 
   if (fueraDeRango) {
@@ -169,13 +172,16 @@ export async function registrarTurnoArea(datos: {
   area?: string;
   turnoAreaId?: string;
   fotoBase64: string;
-  lat: number;
-  lng: number;
+  lat: number | null;
+  lng: number | null;
 }): Promise<{ error?: string }> {
   const usuario = await exigirRol("impulsadora");
   const { tipo, area, turnoAreaId, fotoBase64, lat, lng } = datos;
   if (!fotoBase64 || fotoBase64.length > MAX_FOTO_BASE64) return { error: "La foto no es válida o es muy pesada." };
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return { error: "No se recibió tu ubicación." };
+  // La ubicación es opcional: si el celular no la entrega, se registra sin ubicación.
+  const conUbicacion = Number.isFinite(lat) && Number.isFinite(lng);
+  const latitud = conUbicacion ? lat : null;
+  const longitud = conUbicacion ? lng : null;
   const [abierto] = await sql`SELECT id, area FROM turnos_area WHERE impulsadora_id = ${usuario.id} AND salida_en IS NULL
     ORDER BY entrada_en DESC LIMIT 1`;
   const fotoId = randomUUID();
@@ -186,14 +192,14 @@ export async function registrarTurnoArea(datos: {
     await sql.transaction([
       sql`INSERT INTO fotos (id, contenido, mime) VALUES (${fotoId}, decode(${fotoBase64}, 'base64'), 'image/jpeg')`,
       sql`INSERT INTO turnos_area (impulsadora_id, area, entrada_foto, entrada_lat, entrada_lng)
-        VALUES (${usuario.id}, ${area}, ${fotoId}, ${lat}, ${lng})`,
+        VALUES (${usuario.id}, ${area}, ${fotoId}, ${latitud}, ${longitud})`,
     ]);
   } else {
     if (!abierto || abierto.id !== turnoAreaId) return { error: "No tienes un turno abierto para registrar la salida." };
     await sql.transaction([
       sql`INSERT INTO fotos (id, contenido, mime) VALUES (${fotoId}, decode(${fotoBase64}, 'base64'), 'image/jpeg')`,
       sql`UPDATE turnos_area SET salida_en = now() AT TIME ZONE 'America/Bogota', salida_foto = ${fotoId},
-        salida_lat = ${lat}, salida_lng = ${lng} WHERE id = ${abierto.id} AND impulsadora_id = ${usuario.id} AND salida_en IS NULL`,
+        salida_lat = ${latitud}, salida_lng = ${longitud} WHERE id = ${abierto.id} AND impulsadora_id = ${usuario.id} AND salida_en IS NULL`,
     ]);
   }
   revalidatePath("/turnos");

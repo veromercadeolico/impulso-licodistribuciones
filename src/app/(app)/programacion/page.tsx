@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { Icono } from "@/components/iconos";
 import { FiltroSolicitudes } from "@/components/FiltroSolicitudes";
 import { Avisos, Encabezado, Insignia, Kpi, SelectorPeriodo, Tarjeta, Uniforme, Vacio } from "@/components/ui";
 import { exigirRol } from "@/lib/auth";
@@ -115,6 +117,11 @@ export default async function ProgramacionPage({ searchParams }: { searchParams:
     <>
       <Encabezado titulo="Programación de impulso" detalle={publicado ? "Periodo publicado" : "Periodo en preparación"}>
         <SelectorPeriodo ruta="/programacion" actual={actual} lista={lista} />
+        {usuario.rol === "trade" && (
+          <Link href="/solicitudes/nueva" className="boton">
+            <Icono nombre="mas" className="size-4" /> Nueva solicitud
+          </Link>
+        )}
       </Encabezado>
       <PestanasProgramacion periodo={actual.id} activa="solicitudes" soloLectura={!esTrade} />
       <Avisos ok={sp.ok} error={sp.s ? undefined : sp.error} />
