@@ -16,12 +16,40 @@ export async function comprimir(archivo: File): Promise<string> {
   return lienzo.toDataURL("image/jpeg", 0.72);
 }
 
-export function ubicar(): Promise<GeolocationPosition> {
-  return new Promise((ok, mal) =>
-    navigator.geolocation
-      ? navigator.geolocation.getCurrentPosition(ok, mal, { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 })
-      : mal(new Error("sin geolocalización")),
-  );
+const pedirUbicacion = (opciones: PositionOptions) =>
+  new Promise<GeolocationPosition>((ok, mal) => navigator.geolocation.getCurrentPosition(ok, mal, opciones));
+
+/** Si la app se abrió dentro de WhatsApp, Instagram o Facebook, esos navegadores a veces no entregan la ubicación. */
+const enNavegadorDeApp = () => /WhatsApp|FBAN|FBAV|Instagram/i.test(navigator.userAgent);
+
+/**
+ * Pide la ubicación: primero la precisa (GPS) y, si no responde a tiempo, la aproximada.
+ * Si falla, el error trae un mensaje claro con qué hacer.
+ */
+export async function ubicar(): Promise<GeolocationPosition> {
+  if (!("geolocation" in navigator)) {
+    throw new Error("Este navegador no permite usar la ubicación. Abre el link en Chrome (Android) o Safari (iPhone).");
+  }
+  try {
+    return await pedirUbicacion({ enableHighAccuracy: true, timeout: 20000, maximumAge: 60000 });
+  } catch (e) {
+    const err = e as GeolocationPositionError;
+    if (err.code !== err.PERMISSION_DENIED) {
+      try {
+        // Dentro de locales el GPS preciso a veces no responde: se intenta con la ubicación aproximada.
+        return await pedirUbicacion({ enableHighAccuracy: false, timeout: 20000, maximumAge: 300000 });
+      } catch {
+        throw new Error(
+          "No pudimos obtener tu ubicación. Revisa que la ubicación del celular esté encendida, acércate a una puerta o ventana e intenta de nuevo." +
+            (enNavegadorDeApp() ? " Si abriste el link desde WhatsApp, ábrelo en Chrome o Safari." : ""),
+        );
+      }
+    }
+    throw new Error(
+      "El navegador no tiene permiso para usar tu ubicación. Toca el candado o el ícono junto a la dirección de la página → Permisos → Ubicación → Permitir, y vuelve a intentarlo." +
+        (enNavegadorDeApp() ? " Si abriste el link desde WhatsApp, ábrelo en Chrome o Safari." : ""),
+    );
+  }
 }
 
 export function RegistroAsistencia({ turnoId, tipo }: { turnoId: string; tipo: "entrada" | "salida" }) {
@@ -50,8 +78,8 @@ export function RegistroAsistencia({ turnoId, tipo }: { turnoId: string; tipo: "
       let posicion: GeolocationPosition;
       try {
         posicion = await ubicar();
-      } catch {
-        setMensaje("Activa la ubicación del celular y permite el acceso para registrar tu " + nombre + ".");
+      } catch (e) {
+        setMensaje(e instanceof Error ? e.message : "Activa la ubicación del celular y permite el acceso para registrar tu " + nombre + ".");
         return;
       }
       setMensaje("Enviando…");

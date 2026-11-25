@@ -39,8 +39,8 @@ export function RegistroArea({ tipo, turnoAreaId }: { tipo: "entrada" | "salida"
       let posicion: GeolocationPosition;
       try {
         posicion = await ubicar();
-      } catch {
-        setMensaje(`Activa la ubicación del celular y permite el acceso para registrar tu ${tipo}.`);
+      } catch (e) {
+        setMensaje(e instanceof Error ? e.message : `Activa la ubicación del celular y permite el acceso para registrar tu ${tipo}.`);
         return;
       }
       setMensaje("Enviando…");
