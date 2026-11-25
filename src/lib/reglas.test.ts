@@ -260,3 +260,13 @@ test("Consumo en la noche dura 3 h 30 sin alerta; los demás deben durar 4 h", a
   assert.deepEqual(codigos(evaluarTurno(consumo, [], ctx)), []);
   assert.deepEqual(codigos(evaluarTurno({ ...consumo, canal: "TAT" }, [], ctx)), ["DURACION"]);
 });
+
+test("las solicitudes creadas por Trade van primero en la propuesta", () => {
+  const imp = [{ id: "a", nombre: "Ana", municipio: "ARMENIA" }];
+  const s = (id: string, creadoEn: string, deTrade = false) => ({
+    id, municipio: "ARMENIA", canal: "CONSUMO", prioridad: 1, creadoEn, deTrade, inicio: "2026-11-27 21:00", fin: "2026-11-28 00:30",
+  });
+  const r = generarPropuesta([s("vendedor", "1"), s("trade", "9", true)], imp, new Set(["a|2026-11-27|noche"]));
+  assert.deepEqual(r.asignaciones.map((x) => x.solicitudId), ["trade"]);
+  assert.deepEqual(r.sinCobertura, ["vendedor"]);
+});

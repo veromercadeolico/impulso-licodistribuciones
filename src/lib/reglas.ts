@@ -131,6 +131,8 @@ export type SolicitudPropuesta = SolicitudOrden & {
   inicio: string;
   fin: string;
   canal?: string;
+  /** Solicitud creada por Trade Marketing: va antes que las de los vendedores. */
+  deTrade?: boolean;
 };
 export type ImpulsadoraPropuesta = { id: string; nombre: string; municipio: string | null };
 /** Horario final del turno: puede quedar corrido media hora respecto a la solicitud (corridoMin = 30 o -30). */
@@ -216,7 +218,8 @@ export function generarPropuesta(
     if (t.canal) porCanalJornada.set(claveCanalJornada(t.canal, t.inicio), (porCanalJornada.get(claveCanalJornada(t.canal, t.inicio)) ?? 0) + 1);
   }
 
-  const pendientes = ordenarSolicitudes(solicitudes);
+  // Las solicitudes que crea Trade Marketing van primero; dentro de cada grupo, por relevancia y llegada.
+  const pendientes = [...ordenarSolicitudes(solicitudes.filter((s) => s.deTrade)), ...ordenarSolicitudes(solicitudes.filter((s) => !s.deTrade))];
   const asignadas = new Set<string>();
   // Primero todo a la hora pedida. Lo que no se cubra por falta de descanso se intenta corriendo el turno
   // media hora (más tarde y, si no, más temprano), siempre respetando la hora y media entre turnos.

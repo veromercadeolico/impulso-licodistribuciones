@@ -125,8 +125,8 @@ export async function proponerProgramacion(datos: FormData) {
   const [[semana], todasPendientes, impulsadoras, fijos, disponibles] = await Promise.all([
     sql`SELECT fecha_inicio::text FROM periodos WHERE id = ${periodoId}`,
     sql`SELECT s.id, s.prioridad, s.creado_en::text AS creado, s.fecha::text, s.hora::text, s.canal, s.punto_id, s.marca,
-        s.servicio, m.uniforme, p.municipio, p.nombre AS lugar, p.direccion
-      FROM solicitudes s JOIN puntos p ON p.id = s.punto_id JOIN marcas m ON m.codigo = s.marca
+        s.servicio, m.uniforme, p.municipio, p.nombre AS lugar, p.direccion, v.rol = 'trade' AS de_trade
+      FROM solicitudes s JOIN puntos p ON p.id = s.punto_id JOIN marcas m ON m.codigo = s.marca JOIN usuarios v ON v.id = s.vendedor_id
       WHERE s.periodo_id = ${periodoId} AND s.estado = 'pendiente'
         AND NOT EXISTS (SELECT 1 FROM turnos t WHERE t.solicitud_id = s.id)`,
     sql`SELECT id, nombre, municipio FROM usuarios WHERE rol = 'impulsadora' AND activo`,
@@ -148,6 +148,7 @@ export async function proponerProgramacion(datos: FormData) {
         creadoEn: s.creado,
         municipio: s.municipio,
         canal: s.canal,
+        deTrade: s.de_trade,
         inicio,
         fin: sumarMinutos(inicio, duracionTurno(s.canal, inicio)),
       };
