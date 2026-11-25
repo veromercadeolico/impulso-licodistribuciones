@@ -137,7 +137,7 @@ export async function proponerProgramacion(datos: FormData) {
 
   const filas = asignaciones.map((a) => {
     const s = porId.get(a.solicitudId)!;
-    const inicio = `${s.fecha} ${s.hora.slice(0, 5)}`;
+    // El horario puede quedar corrido media hora para respetar el descanso de la impulsadora.
     return {
       solicitud_id: s.id,
       impulsadora_id: a.impulsadoraId,
@@ -146,8 +146,8 @@ export async function proponerProgramacion(datos: FormData) {
       marca: s.marca,
       uniforme: s.uniforme,
       servicio: s.servicio,
-      inicio,
-      fin: sumarMinutos(inicio, DURACION_TURNO_MIN),
+      inicio: a.inicio,
+      fin: a.fin,
     };
   });
   if (filas.length) {
@@ -158,12 +158,14 @@ export async function proponerProgramacion(datos: FormData) {
   }
   await recalcularAlertas(periodoId);
   const eventosFuera = await avisarEventosFuera(periodoId);
+  const corridos = asignaciones.filter((a) => a.corridoMin !== 0).length;
   revalidatePath("/programacion");
   volver(
     periodoId,
     "ok",
     `Propuesta lista: ${filas.length} asignadas y ${sinCobertura.length} sin cobertura.` +
-      (eventosFuera ? ` Revisa ${eventosFuera === 1 ? "1 evento asignado" : `${eventosFuera} eventos asignados`} a impulsadoras de otro municipio (te llegó el aviso).` : ""),
+      (eventosFuera ? ` Revisa ${eventosFuera === 1 ? "1 evento asignado" : `${eventosFuera} eventos asignados`} a impulsadoras de otro municipio (te llegó el aviso).` : "") +
+      (corridos ? ` ${corridos === 1 ? "1 turno quedó corrido" : `${corridos} turnos quedaron corridos`} media hora para respetar el descanso (míralos en el Excel por día).` : ""),
   );
 }
 

@@ -125,7 +125,10 @@ export type SolicitudPropuesta = SolicitudOrden & {
   canal?: string;
 };
 export type ImpulsadoraPropuesta = { id: string; nombre: string; municipio: string | null };
-export type Asignacion = { solicitudId: string; impulsadoraId: string; alertas: Alerta[] };
+/** Horario final del turno: puede quedar corrido media hora respecto a la solicitud (corridoMin = 30 o -30). */
+export type Asignacion = { solicitudId: string; impulsadoraId: string; alertas: Alerta[]; inicio: string; fin: string; corridoMin: number };
+/** Cuánto se puede correr un turno para cubrirlo cuando nadie tiene la hora y media libre. */
+export const CORRIMIENTOS_MIN = [0, 30, -30];
 
 const claveCanalJornada = (canal: string, inicio: string) => `${canal}|${inicio.slice(0, 10)}|${franjaDe(inicio)}`;
 
@@ -154,23 +157,37 @@ export function generarPropuesta(
 
   const pendientes = ordenarSolicitudes(solicitudes);
   const asignadas = new Set<string>();
-  for (let limite = MAX_TURNOS_CANAL_JORNADA; limite <= MAX_TURNOS_CANAL_JORNADA * (solicitudes.length + 1); limite += MAX_TURNOS_CANAL_JORNADA) {
-    let quedan = false;
-    for (const solicitud of pendientes) {
-      if (asignadas.has(solicitud.id)) continue;
-      const clave = solicitud.canal ? claveCanalJornada(solicitud.canal, solicitud.inicio) : null;
-      if (clave && (porCanalJornada.get(clave) ?? 0) >= limite) {
-        quedan = true;
-        continue;
+  // Primero todo a la hora pedida. Lo que no se cubra por falta de descanso se intenta corriendo el turno
+  // media hora (más tarde y, si no, más temprano), siempre respetando la hora y media entre turnos.
+  for (const corrimiento of CORRIMIENTOS_MIN) {
+    for (let limite = MAX_TURNOS_CANAL_JORNADA; limite <= MAX_TURNOS_CANAL_JORNADA * (solicitudes.length + 1); limite += MAX_TURNOS_CANAL_JORNADA) {
+      let quedan = false;
+      for (const original of pendientes) {
+        if (asignadas.has(original.id)) continue;
+        const clave = original.canal ? claveCanalJornada(original.canal, original.inicio) : null;
+        if (clave && (porCanalJornada.get(clave) ?? 0) >= limite) {
+          quedan = true;
+          continue;
+        }
+        const solicitud = corrimiento
+          ? { ...original, inicio: sumarMinutos(original.inicio, corrimiento), fin: sumarMinutos(original.fin, corrimiento) }
+          : original;
+        const elegida = elegirImpulsadora(solicitud);
+        if (!elegida) continue;
+        asignadas.add(original.id);
+        ocupados.push({ impulsadoraId: elegida.imp.id, inicio: solicitud.inicio, fin: solicitud.fin });
+        if (clave) porCanalJornada.set(clave, (porCanalJornada.get(clave) ?? 0) + 1);
+        asignaciones.push({
+          solicitudId: original.id,
+          impulsadoraId: elegida.imp.id,
+          alertas: elegida.alertas,
+          inicio: solicitud.inicio,
+          fin: solicitud.fin,
+          corridoMin: corrimiento,
+        });
       }
-      const elegida = elegirImpulsadora(solicitud);
-      if (!elegida) continue;
-      asignadas.add(solicitud.id);
-      ocupados.push({ impulsadoraId: elegida.imp.id, inicio: solicitud.inicio, fin: solicitud.fin });
-      if (clave) porCanalJornada.set(clave, (porCanalJornada.get(clave) ?? 0) + 1);
-      asignaciones.push({ solicitudId: solicitud.id, impulsadoraId: elegida.imp.id, alertas: elegida.alertas });
+      if (!quedan) break;
     }
-    if (!quedan) break;
   }
   for (const s of pendientes) if (!asignadas.has(s.id)) sinCobertura.push(s.id);
   return { asignaciones, sinCobertura };

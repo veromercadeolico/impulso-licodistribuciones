@@ -27,7 +27,7 @@ export async function GET(req: Request) {
   const [turnos, degustacion, solicitudes, impulsadoras, canales, oficina, disponibilidad] = await Promise.all([
     sql`SELECT t.id, t.inicio::date::text AS dia, t.inicio::text, t.fin::text, t.canal, c.nombre AS canal_nombre, c.orden,
         p.municipio, p.nombre AS lugar, p.direccion, t.marca, m.nombre AS marca_nombre, t.uniforme, u.nombre AS impulsadora,
-        CASE WHEN t.servicio = 'bartender' THEN concat_ws('. ', 'BARTENDER', s.notas) ELSE s.notas END AS notas, s.obsequios, v.nombre AS vendedor, t.publicado
+        CASE WHEN t.servicio = 'bartender' THEN concat_ws('. ', 'BARTENDER', s.notas) ELSE s.notas END AS notas, s.obsequios, v.nombre AS vendedor, t.publicado, s.hora::text AS hora_solicitada
       FROM turnos t JOIN canales c ON c.codigo = t.canal JOIN puntos p ON p.id = t.punto_id
       JOIN marcas m ON m.codigo = t.marca JOIN usuarios u ON u.id = t.impulsadora_id
       LEFT JOIN solicitudes s ON s.id = t.solicitud_id LEFT JOIN usuarios v ON v.id = s.vendedor_id

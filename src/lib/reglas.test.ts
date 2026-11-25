@@ -197,3 +197,18 @@ test("la propuesta prefiere el municipio y, entre las del municipio, a quien tie
   // Primero Bea (Armenia, menos de 3), luego Ana (Armenia, ya tiene 3) antes que Cata (Calarcá).
   assert.deepEqual(r.asignaciones.map((a) => a.impulsadoraId), ["arm2", "arm1"]);
 });
+
+test("si nadie tiene la hora y media libre, la propuesta corre el turno media hora", () => {
+  const imp = [{ id: "a", nombre: "Ana", municipio: "ARMENIA" }];
+  // Ana termina a las 6:00 PM: a las 7:00 PM solo tendría 1 h de descanso; a las 7:30 PM ya tiene 1 h 30.
+  const fijos = [{ impulsadoraId: "a", inicio: "2026-11-28 14:00", fin: "2026-11-28 18:00" }];
+  const r = generarPropuesta(
+    [{ id: "1", municipio: "ARMENIA", prioridad: null, creadoEn: "1", inicio: "2026-11-28 19:00", fin: "2026-11-28 23:00" }],
+    imp,
+    new Set(["a|2026-11-28|noche", "a|2026-11-28|tarde"]),
+    fijos,
+  );
+  assert.equal(r.asignaciones[0].inicio, "2026-11-28 19:30");
+  assert.equal(r.asignaciones[0].corridoMin, 30);
+  assert.deepEqual(r.sinCobertura, []);
+});

@@ -60,6 +60,8 @@ export type TurnoExcel = {
   obsequios: string | null;
   vendedor: string | null;
   publicado: boolean;
+  /** Hora que pidió la solicitud ("HH:MM:SS"); si es distinta a la del turno, el turno quedó corrido. */
+  hora_solicitada?: string | null;
 };
 export type DegustacionExcel = { turno_id: string; marca: string; presentacion: string; asignado: number; tipo: string };
 export type SolicitudExcel = {
@@ -496,7 +498,12 @@ function hojaRevision(libro: ExcelJS.Workbook, turnos: TurnoExcel[], solicitudes
         t.municipio,
         t.marca,
         descanso === null ? "–" : `${Math.floor(descanso / 60)} h ${String(descanso % 60).padStart(2, "0")} min`,
-        descanso === null ? "" : corto ? "MENOS DE 1 H 30" : "OK",
+        [
+          descanso === null ? "" : corto ? "MENOS DE 1 H 30" : "OK",
+          t.hora_solicitada && t.hora_solicitada.slice(0, 5) !== t.inicio.slice(11, 16)
+            ? `CORRIDO (pedido ${hora(`${t.dia} ${t.hora_solicitada}`)})`
+            : "",
+        ].filter(Boolean).join(" · "),
       ];
       valores.forEach((v, j) => {
         const c = hoja.getRow(fila).getCell(j + 1);
