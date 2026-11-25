@@ -562,6 +562,18 @@ async function exigirDegustacion(datos: FormData) {
     datos.get("desde") === "programacion" ? volver(periodoId, tipo, m, `#s-${solicitud}`) : aDegustacion(periodoId, tipo, m);
 }
 
+/**
+ * El uniforme del turno sigue a su degustación: el de la marca con más unidades de degustación
+ * (Esencial → ESE, Amarillo → AA, Ron Viejo de Caldas → RVC). Sin degustación, el de la marca del turno.
+ */
+async function uniformeSegunDegustacion(turnoId: string) {
+  await sql`UPDATE turnos t SET uniforme = COALESCE(
+      (SELECT m.uniforme FROM degustacion d JOIN marcas m ON m.codigo = d.marca
+        WHERE d.turno_id = t.id AND d.tipo = 'degustacion' ORDER BY d.asignado DESC, d.id LIMIT 1),
+      (SELECT m.uniforme FROM marcas m WHERE m.codigo = t.marca), t.uniforme)
+    WHERE t.id = ${turnoId}`;
+}
+
 export async function asignarDegustacion(datos: FormData) {
   const responder = await exigirDegustacion(datos);
   const periodoId = String(datos.get("periodo"));
@@ -578,6 +590,7 @@ export async function asignarDegustacion(datos: FormData) {
   await sql`INSERT INTO degustacion (turno_id, marca, presentacion, asignado, tipo)
     VALUES (${turnoId}, ${marca}, ${presentacion}, ${cantidad}, ${tipo})
     ON CONFLICT (turno_id, marca, presentacion) DO UPDATE SET asignado = EXCLUDED.asignado, tipo = EXCLUDED.tipo`;
+  await uniformeSegunDegustacion(turnoId);
   revalidatePath("/programacion/degustacion");
   revalidatePath("/programacion");
   responder("ok", tipo === "obsequio" ? "Obsequio asignado." : "Degustación asignada.");
@@ -586,8 +599,10 @@ export async function asignarDegustacion(datos: FormData) {
 export async function quitarDegustacion(datos: FormData) {
   const responder = await exigirDegustacion(datos);
   const periodoId = String(datos.get("periodo"));
-  await sql`DELETE FROM degustacion d USING turnos t
-    WHERE d.id = ${String(datos.get("id"))} AND d.usado IS NULL AND t.id = d.turno_id AND t.periodo_id = ${periodoId}`;
+  const [quitada] = await sql`DELETE FROM degustacion d USING turnos t
+    WHERE d.id = ${String(datos.get("id"))} AND d.usado IS NULL AND t.id = d.turno_id AND t.periodo_id = ${periodoId}
+    RETURNING d.turno_id`;
+  if (quitada) await uniformeSegunDegustacion(quitada.turno_id);
   revalidatePath("/programacion/degustacion");
   revalidatePath("/programacion");
   responder("ok", "Degustación retirada.");
