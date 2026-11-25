@@ -212,3 +212,11 @@ test("si nadie tiene la hora y media libre, la propuesta corre el turno media ho
   assert.equal(r.asignaciones[0].corridoMin, 30);
   assert.deepEqual(r.sinCobertura, []);
 });
+
+test("Consumo en la noche siempre queda a las 9:00 PM; la tarde y otros canales no cambian", async () => {
+  const { horaSegunCanal } = await import("./reglas.ts");
+  assert.equal(horaSegunCanal("CONSUMO", "20:00"), "21:00");
+  assert.equal(horaSegunCanal("CONSUMO", "20:30"), "21:00");
+  assert.equal(horaSegunCanal("CONSUMO", "12:00"), "12:00");
+  assert.equal(horaSegunCanal("TAT", "20:00"), "20:00");
+});

@@ -127,6 +127,13 @@ export type SolicitudPropuesta = SolicitudOrden & {
 export type ImpulsadoraPropuesta = { id: string; nombre: string; municipio: string | null };
 /** Horario final del turno: puede quedar corrido media hora respecto a la solicitud (corridoMin = 30 o -30). */
 export type Asignacion = { solicitudId: string; impulsadoraId: string; alertas: Alerta[]; inicio: string; fin: string; corridoMin: number };
+/** Consumo en la noche (desde las 6 PM) siempre empieza a las 9:00 PM y dura 4 horas, hasta la 1:00 AM. */
+export const HORA_CONSUMO_NOCHE = "21:00";
+export function horaSegunCanal(canal: string, hora: string): string {
+  return canal === "CONSUMO" && /^\d{2}:\d{2}$/.test(hora) && hora >= "18:00" ? HORA_CONSUMO_NOCHE : hora;
+}
+const esConsumoNoche = (s: { canal?: string; inicio: string }) => s.canal === "CONSUMO" && franjaDe(s.inicio) === "noche";
+
 /** Cuánto se puede correr un turno para cubrirlo cuando nadie tiene la hora y media libre. */
 export const CORRIMIENTOS_MIN = [0, 30, -30];
 
@@ -164,6 +171,8 @@ export function generarPropuesta(
       let quedan = false;
       for (const original of pendientes) {
         if (asignadas.has(original.id)) continue;
+        // Consumo en la noche tiene hora fija (9:00 PM): no se corre.
+        if (corrimiento && esConsumoNoche(original)) continue;
         const clave = original.canal ? claveCanalJornada(original.canal, original.inicio) : null;
         if (clave && (porCanalJornada.get(clave) ?? 0) >= limite) {
           quedan = true;

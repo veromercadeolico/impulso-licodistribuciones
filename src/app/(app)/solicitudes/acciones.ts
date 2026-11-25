@@ -9,6 +9,7 @@ import { ahoraBogota, hoyBogota, MUNICIPIOS, SERVICIOS } from "@/lib/formato";
 import { enlaceComentario } from "@/lib/comentarios";
 import { escapar, notificar } from "@/lib/notificar";
 import { asegurarPeriodo } from "@/lib/periodos";
+import { horaSegunCanal } from "@/lib/reglas";
 
 const error = (m: string): never => redirect(`/solicitudes/nueva?error=${encodeURIComponent(m)}`);
 
@@ -17,7 +18,9 @@ export async function crearSolicitud(datos: FormData) {
   const texto = (k: string, max: number) => String(datos.get(k) ?? "").trim().replace(/\s+/g, " ").slice(0, max);
   const canal = texto("canal", 20);
   const fecha = texto("fecha", 10);
-  const hora = texto("hora", 5);
+  const horaPedida = texto("hora", 5);
+  // Consumo en la noche siempre es de 9:00 PM a 1:00 AM.
+  const hora = horaSegunCanal(canal, horaPedida);
   const marcas = [...new Set(datos.getAll("marca").map(String))];
   const lugar = texto("lugar", 120);
   const direccion = texto("direccion", 160) || null;
