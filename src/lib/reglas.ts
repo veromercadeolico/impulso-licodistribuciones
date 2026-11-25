@@ -128,6 +128,22 @@ export type ImpulsadoraPropuesta = { id: string; nombre: string; municipio: stri
 /** Horario final del turno: puede quedar corrido media hora respecto a la solicitud (corridoMin = 30 o -30). */
 export type Asignacion = { solicitudId: string; impulsadoraId: string; alertas: Alerta[]; inicio: string; fin: string; corridoMin: number };
 /**
+ * Quién puede cubrir turnos fuera de su municipio. Las de Armenia pueden ir a cualquier municipio.
+ * Las que viven en otro municipio solo cubren el suyo, salvo estas excepciones (por id de usuario).
+ */
+export const PUEDEN_SALIR: Record<string, { municipio: string; soloDia: boolean }[]> = {
+  "00e683f6-c1ed-4a0f-b452-65397b9c836b": [{ municipio: "ARMENIA", soloDia: true }], // Danna Alejandra Salazar Florez (Montenegro)
+  "eba122eb-cf51-4e48-a501-d264b2957c78": [{ municipio: "ARMENIA", soloDia: true }], // Ana Sofía Tavera Sánchez (La Tebaida)
+};
+export const MUNICIPIO_BASE = "ARMENIA";
+
+/** Si la impulsadora puede cubrir un turno en ese municipio y hora ("de día" = turno que empieza antes de las 6 PM). */
+export function puedeCubrir(imp: { id: string; municipio: string | null }, municipio: string, inicio: string): boolean {
+  if (!imp.municipio || imp.municipio === MUNICIPIO_BASE || imp.municipio === municipio) return true;
+  return (PUEDEN_SALIR[imp.id] ?? []).some((e) => e.municipio === municipio && (!e.soloDia || franjaDe(inicio) === "tarde"));
+}
+
+/**
  * Degustación que la propuesta pone a cada turno según el canal, siempre de la marca del turno.
  * Sale de lo más común en las programaciones anteriores; Trade la puede cambiar a mano por turno.
  */
@@ -218,7 +234,7 @@ export function generarPropuesta(
 
   function elegirImpulsadora(solicitud: SolicitudPropuesta) {
     const candidatas = impulsadoras
-      .filter((imp) => disponibles.has(claveDisponibilidad(imp.id, solicitud.inicio)))
+      .filter((imp) => disponibles.has(claveDisponibilidad(imp.id, solicitud.inicio)) && puedeCubrir(imp, solicitud.municipio, solicitud.inicio))
       .map((imp) => {
         const propios = ocupados.filter((t) => t.impulsadoraId === imp.id);
         const turno = { ...solicitud, id: undefined, impulsadoraId: imp.id };

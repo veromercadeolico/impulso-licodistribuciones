@@ -227,3 +227,16 @@ test("reconoce Consumo en la tarde para pedir confirmación", async () => {
   assert.equal(esConsumoTarde("CONSUMO", "21:00"), false);
   assert.equal(esConsumoTarde("SUPERMERCADOS", "12:00"), false);
 });
+
+test("las de fuera de Armenia solo cubren su municipio, salvo las excepciones de día en Armenia", async () => {
+  const { puedeCubrir } = await import("./reglas.ts");
+  const quimbaya = { id: "q", municipio: "QUIMBAYA" };
+  const danna = { id: "00e683f6-c1ed-4a0f-b452-65397b9c836b", municipio: "MONTENEGRO" };
+  const armenia = { id: "a", municipio: "ARMENIA" };
+  assert.equal(puedeCubrir(quimbaya, "QUIMBAYA", "2026-11-28 21:00"), true);
+  assert.equal(puedeCubrir(quimbaya, "ARMENIA", "2026-11-28 14:00"), false);
+  assert.equal(puedeCubrir(danna, "ARMENIA", "2026-11-28 14:00"), true);
+  assert.equal(puedeCubrir(danna, "ARMENIA", "2026-11-28 21:00"), false);
+  assert.equal(puedeCubrir(danna, "LA TEBAIDA", "2026-11-28 14:00"), false);
+  assert.equal(puedeCubrir(armenia, "FILANDIA", "2026-11-28 21:00"), true);
+});
