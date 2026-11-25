@@ -37,6 +37,8 @@ export default async function TurnosPage() {
   const desde = sumarDias(ahora, -DIAS_ALERTA_REPORTE);
   // El bartender no envía reporte de ventas: sus turnos no generan alerta.
   const sinReporte = turnos.filter((t) => t.servicio !== "bartender" && !t.ventas && t.fin.slice(0, 16) <= ahora && t.fin.slice(0, 10) >= desde).reverse();
+  // Turno de impulso programado para hoy (no bartender) que aún no tiene reporte: el botón Impulso lleva a él.
+  const impulsoHoy = [...turnos].reverse().find((t) => t.servicio !== "bartender" && !t.ventas && t.inicio.slice(0, 10) === ahora.slice(0, 10));
 
   const Ficha = ({ t }: { t: (typeof turnos)[number] }) => (
     <li>
@@ -95,13 +97,13 @@ export default async function TurnosPage() {
           <details>
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
               <span>
-                <span className="block font-semibold">¿Hoy trabajas en Bodega, Oficina o Mercadeo?</span>
-                <span className="block text-sm text-suave">Registra aquí tu entrada y tu salida. Estos turnos no llevan reporte de ventas.</span>
+                <span className="block font-semibold">¿Dónde trabajas hoy?</span>
+                <span className="block text-sm text-suave">Impulso, Bodega, Oficina o Mercadeo. Los turnos de Bodega, Oficina y Mercadeo se registran aquí, sin reporte de ventas.</span>
               </span>
               <span className="boton-sec shrink-0">Registrar</span>
             </summary>
             <div className="mt-4 border-t border-linea pt-4">
-              <RegistroArea tipo="entrada" />
+              <RegistroArea tipo="entrada" turnoImpulsoHoy={impulsoHoy ? { id: impulsoHoy.id, lugar: impulsoHoy.lugar, horario: horario(impulsoHoy.inicio, impulsoHoy.fin) } : null} />
             </div>
           </details>
         )}

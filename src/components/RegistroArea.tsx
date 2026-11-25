@@ -1,18 +1,32 @@
 "use client";
 
+import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { registrarTurnoArea } from "@/app/(app)/turnos/acciones";
 import { comprimir, ubicar } from "./RegistroAsistencia";
 
+// Impulso va primero. Los turnos de impulso siempre salen de la programación: al elegirlo no se registra aquí,
+// se lleva a la persona a su turno programado de hoy o se le avisa que no tiene.
 const AREAS = [
+  { valor: "impulso", texto: "Impulso" },
   { valor: "bodega", texto: "Bodega" },
   { valor: "oficina", texto: "Oficina" },
   { valor: "mercadeo", texto: "Mercadeo" },
 ];
 
+export type TurnoImpulsoHoy = { id: string; lugar: string; horario: string } | null;
+
 /** Entrada (eligiendo el área) o salida de un turno en Bodega, Oficina o Mercadeo, con foto y ubicación. */
-export function RegistroArea({ tipo, turnoAreaId }: { tipo: "entrada" | "salida"; turnoAreaId?: string }) {
+export function RegistroArea({
+  tipo,
+  turnoAreaId,
+  turnoImpulsoHoy = null,
+}: {
+  tipo: "entrada" | "salida";
+  turnoAreaId?: string;
+  turnoImpulsoHoy?: TurnoImpulsoHoy;
+}) {
   const router = useRouter();
   const entradaFoto = useRef<HTMLInputElement>(null);
   const [area, setArea] = useState<string | null>(null);
@@ -33,7 +47,7 @@ export function RegistroArea({ tipo, turnoAreaId }: { tipo: "entrada" | "salida"
 
   function enviar() {
     if (!foto) return;
-    if (tipo === "entrada" && !area) return setMensaje("Elige el área donde vas a trabajar.");
+    if (tipo === "entrada" && (!area || area === "impulso")) return setMensaje("Elige el área donde vas a trabajar: Bodega, Oficina o Mercadeo.");
     iniciar(async () => {
       setMensaje("Obteniendo tu ubicación…");
       let posicion: GeolocationPosition;
@@ -65,7 +79,7 @@ export function RegistroArea({ tipo, turnoAreaId }: { tipo: "entrada" | "salida"
       {tipo === "entrada" && (
         <fieldset>
           <legend className="mb-2 text-sm font-semibold">¿Dónde vas a trabajar hoy?</legend>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {AREAS.map((a) => (
               <label
                 key={a.valor}
@@ -73,28 +87,50 @@ export function RegistroArea({ tipo, turnoAreaId }: { tipo: "entrada" | "salida"
                   area === a.valor ? "border-tinta bg-tinta text-fondo" : "border-borde bg-white"
                 }`}
               >
-                <input type="radio" name="area" value={a.valor} checked={area === a.valor} onChange={() => setArea(a.valor)} className="sr-only" />
+                <input
+                  type="radio"
+                  name="area"
+                  value={a.valor}
+                  checked={area === a.valor}
+                  onChange={() => { setArea(a.valor); setMensaje(""); }}
+                  className="sr-only"
+                />
                 {a.texto}
               </label>
             ))}
           </div>
         </fieldset>
       )}
-      <input ref={entradaFoto} type="file" accept="image/*" capture="user" onChange={elegir} className="sr-only" aria-label={`Foto de ${tipo}`} />
-      {foto ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={foto} alt={`Vista previa de la foto de ${tipo}`} className="max-h-64 w-full rounded-lg object-contain" />
-      ) : null}
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <button type="button" onClick={() => entradaFoto.current?.click()} className={foto ? "boton-sec" : "boton"}>
-          {foto ? "Tomar otra foto" : `Tomar foto de ${tipo}`}
-        </button>
-        {foto && (
-          <button type="button" onClick={enviar} disabled={enviando} className="boton">
-            {enviando ? "Registrando…" : `Registrar ${tipo}`}
-          </button>
-        )}
-      </div>
+      {tipo === "entrada" && area === "impulso" ? (
+        turnoImpulsoHoy ? (
+          <div className="rounded-lg bg-ok-claro px-3.5 py-3 text-sm text-ok">
+            <p>Tienes un turno de impulso programado hoy: <strong>{turnoImpulsoHoy.lugar}</strong>, {turnoImpulsoHoy.horario}.</p>
+            <Link href={`/turnos/${turnoImpulsoHoy.id}`} className="boton mt-3 w-full">Ir a mi turno de impulso</Link>
+          </div>
+        ) : (
+          <p role="status" className="rounded-lg bg-alerta-claro px-3.5 py-3 text-sm text-alerta">
+            <strong>No tienes turnos de impulso programados para hoy.</strong> Los turnos de impulso salen de la programación que publica Trade Marketing.
+          </p>
+        )
+      ) : (
+        <>
+          <input ref={entradaFoto} type="file" accept="image/*" capture="user" onChange={elegir} className="sr-only" aria-label={`Foto de ${tipo}`} />
+          {foto ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={foto} alt={`Vista previa de la foto de ${tipo}`} className="max-h-64 w-full rounded-lg object-contain" />
+          ) : null}
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <button type="button" onClick={() => entradaFoto.current?.click()} className={foto ? "boton-sec" : "boton"}>
+              {foto ? "Tomar otra foto" : `Tomar foto de ${tipo}`}
+            </button>
+            {foto && (
+              <button type="button" onClick={enviar} disabled={enviando} className="boton">
+                {enviando ? "Registrando…" : `Registrar ${tipo}`}
+              </button>
+            )}
+          </div>
+        </>
+      )}
       <p aria-live="polite" className="text-sm text-error empty:hidden">{mensaje}</p>
     </div>
   );
