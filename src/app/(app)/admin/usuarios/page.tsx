@@ -73,7 +73,7 @@ export default async function UsuariosPage({ searchParams }: { searchParams: Pro
     <>
       <Encabezado
         titulo={esAdmin ? "Usuarios" : "Equipo"}
-        detalle={`${usuarios.length} registrados · ${sinCedula} sin cédula${esAdmin ? "" : " · vendedores, impulsadoras y supervisión"}`}
+        detalle={`${usuarios.length} registrados · ${sinCedula} sin cédula${esAdmin ? "" : " · vendedores, impulsadoras, supervisión y gerencia comercial"}`}
       >
         <a href="/api/admin/plantilla" className="boton-sec">Descargar plantilla Excel</a>
       </Encabezado>

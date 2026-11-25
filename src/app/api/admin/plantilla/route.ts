@@ -5,7 +5,7 @@ import { sql } from "@/lib/db";
 export async function GET() {
   const usuario = await usuarioActual();
   if (usuario?.rol !== "admin" && usuario?.rol !== "trade") return new Response("No autorizado", { status: 403 });
-  const roles = usuario.rol === "admin" ? ["admin", "trade", "vendedor", "impulsadora", "lider_canal", "director", "supervisor"] : ["vendedor", "impulsadora", "supervisor"];
+  const roles = usuario.rol === "admin" ? ["admin", "trade", "vendedor", "impulsadora", "lider_canal", "director", "supervisor"] : ["vendedor", "impulsadora", "supervisor", "director"];
 
   const [usuarios, canales] = await Promise.all([
     sql`SELECT cedula, nombre, correo, rol, canal, municipio FROM usuarios WHERE activo AND rol = ANY(${roles}) ORDER BY rol, nombre`,

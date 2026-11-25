@@ -12,7 +12,7 @@ const aUsuarios = (tipo: "ok" | "error", m: string): never =>
 
 /** Trade Marketing administra solo a su equipo: vendedores, impulsadoras y perfiles de supervisión. */
 export async function rolesQuePuedeGestionar(u: Pick<Usuario, "rol">): Promise<string[]> {
-  return u.rol === "admin" ? Object.keys(ROLES) : ["vendedor", "impulsadora", "supervisor"];
+  return u.rol === "admin" ? Object.keys(ROLES) : ["vendedor", "impulsadora", "supervisor", "director"];
 }
 
 type Datos = { cedula: string | null; nombre: string; correo: string | null; rol: string; canal: string | null; municipio: string | null; subperfil?: string | null };
@@ -22,7 +22,7 @@ function validar(d: Datos, canales: string[], permitidos: string[]): string | nu
   if (d.cedula && !/^\d{5,15}$/.test(d.cedula)) return `La cédula ${d.cedula} no es válida.`;
   if (d.correo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.correo)) return `El correo ${d.correo} no es válido.`;
   if (!ROLES[d.rol]) return `El rol ${d.rol} no existe.`;
-  if (!permitidos.includes(d.rol)) return "Solo puedes crear o editar vendedores, impulsadoras y perfiles de supervisión.";
+  if (!permitidos.includes(d.rol)) return "Solo puedes crear o editar vendedores, impulsadoras, supervisión y gerencia comercial.";
   if (d.canal && !canales.includes(d.canal)) return `El canal ${d.canal} no existe.`;
   if (d.rol === "vendedor" && !d.canal) return `Indica el canal del vendedor ${d.nombre}.`;
   if (d.municipio && !MUNICIPIOS.includes(d.municipio)) return `El municipio ${d.municipio} no existe.`;

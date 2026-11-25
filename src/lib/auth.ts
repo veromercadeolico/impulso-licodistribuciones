@@ -72,7 +72,7 @@ export function inicioPorRol(rol: Rol): string {
     vendedor: "/solicitudes",
     impulsadora: "/turnos",
     lider_canal: "/reportes",
-    director: "/reportes",
+    director: "/solicitudes",
     supervisor: "/programacion",
   };
   return rutas[rol];

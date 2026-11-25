@@ -37,6 +37,7 @@ const MENU: Record<Rol, ItemNav[]> = {
     { href: "/reportes", texto: "Reportes", icono: "grafico" },
   ],
   director: [
+    { href: "/solicitudes", texto: "Solicitudes", icono: "lista" },
     { href: "/reportes", texto: "Informe de ventas", icono: "grafico" },
     { href: "/calendario", texto: "Programación", icono: "calendario" },
   ],

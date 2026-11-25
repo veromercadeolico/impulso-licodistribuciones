@@ -6,6 +6,7 @@ import { fechaCorta, hora, PRESENTACIONES, PRIORIDADES } from "@/lib/formato";
 import { periodoSeleccionado } from "@/lib/periodos";
 import { DIAS_ALERTA_REPORTE, franjaDe, ordenarSolicitudes, sumarMinutos, type Alerta } from "@/lib/reglas";
 import { DETALLE_APROBADO_TURNO, pasosPermitidos, puedeEditar, puedePublicar, type EstadoFlujo } from "@/lib/flujo";
+import { comentariosDeSemana } from "@/lib/comentarios";
 import { estadoSemana } from "@/lib/flujoSemana";
 import {
   actualizarLimite,
@@ -98,6 +99,7 @@ export default async function ProgramacionPage({ searchParams }: { searchParams:
         AND ${flujo.enviadaEn}::timestamptz IS NOT NULL AND ct.creado_en > ${flujo.enviadaEn}::timestamptz`,
   ]);
   const aprobados = new Set(aprobaciones.map((a) => a.turno_id as string));
+  const comentarios = await comentariosDeSemana(actual.id);
 
   const disponibles =new Set(disponibilidad.map((d) => `${d.impulsadora_id}|${d.fecha}|${d.franja}`));
   const orden = ordenarSolicitudes(
@@ -379,6 +381,9 @@ export default async function ProgramacionPage({ searchParams }: { searchParams:
                 <p className="mt-1 text-sm"><span className="font-semibold">Producto para regalar:</span> {s.obsequios}</p>
               )}
               <p className="mt-1 text-xs text-suave">Recibida el {fechaCorta(s.creado)} a las {hora(s.creado)}</p>
+              {(comentarios.get(s.id) ?? []).map((c, n) => (
+                <p key={n} className="mt-2 rounded-lg bg-gris px-3 py-1.5 text-sm"><span className="font-semibold">Comentario:</span> {c.cuerpo} <span className="text-xs text-suave">({fechaCorta(c.fecha)}, {hora(c.fecha)})</span></p>
+              ))}
 
               {alertas.length > 0 && (
                 <ul className="mt-3 space-y-1">

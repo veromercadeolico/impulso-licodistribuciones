@@ -6,6 +6,8 @@ import { redirect } from "next/navigation";
 import { exigirRol } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { ahoraBogota, hoyBogota, MUNICIPIOS, SERVICIOS } from "@/lib/formato";
+import { enlaceComentario } from "@/lib/comentarios";
+import { escapar, notificar } from "@/lib/notificar";
 import { asegurarPeriodo } from "@/lib/periodos";
 
 const error = (m: string): never => redirect(`/solicitudes/nueva?error=${encodeURIComponent(m)}`);
@@ -71,4 +73,28 @@ export async function retirarSolicitud(datos: FormData) {
   ]);
   revalidatePath("/solicitudes");
   redirect(`/solicitudes?ok=${encodeURIComponent("Solicitud retirada.")}`);
+}
+
+/** La Gerencia comercial deja un comentario sobre una solicitud; le llega a Trade Marketing como aviso y correo. */
+export async function comentarSolicitud(datos: FormData) {
+  const usuario = await exigirRol("director");
+  const id = String(datos.get("id") ?? "");
+  const texto = String(datos.get("comentario") ?? "").trim().slice(0, 500);
+  const [s] = await sql`SELECT s.periodo_id, s.fecha::text, p.nombre AS lugar, v.nombre AS vendedor
+    FROM solicitudes s JOIN puntos p ON p.id = s.punto_id JOIN usuarios v ON v.id = s.vendedor_id WHERE s.id = ${id}`;
+  const volver = (tipo: "ok" | "error", m: string): never =>
+    redirect(`/solicitudes?${s ? `p=${s.periodo_id}&` : ""}${tipo}=${encodeURIComponent(m)}#c-${id}`);
+  if (!s) volver("error", "La solicitud ya no existe.");
+  if (texto.length < 3) volver("error", "Escribe el comentario para Trade Marketing.");
+  const trade = await sql`SELECT id FROM usuarios WHERE rol = 'trade' AND activo`;
+  await notificar(trade.map((t) => t.id), {
+    titulo: `Comentario de ${usuario.nombre}: ${s.lugar}`,
+    cuerpo: `${usuario.nombre}: ${texto}`,
+    enlace: enlaceComentario(s.periodo_id, id),
+    correo: true,
+    detalleHtml: `<p>Solicitud de ${escapar(s.vendedor)} para ${escapar(s.lugar)}, ${escapar(s.fecha)}.</p>`,
+  });
+  revalidatePath("/solicitudes");
+  revalidatePath("/programacion");
+  volver("ok", "Comentario enviado a Trade Marketing.");
 }

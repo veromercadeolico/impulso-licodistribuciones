@@ -7,7 +7,8 @@ import { DETALLE_APROBADO_TURNO } from "@/lib/flujo";
 import { fechaCorta, fechaLarga, hora, horario, PRIORIDADES } from "@/lib/formato";
 import { periodoSeleccionado } from "@/lib/periodos";
 import { ordenarSolicitudes } from "@/lib/reglas";
-import { retirarSolicitud } from "./acciones";
+import { comentariosDeSemana } from "@/lib/comentarios";
+import { comentarSolicitud, retirarSolicitud } from "./acciones";
 
 type Params = Promise<{ p?: string; ok?: string; error?: string; canal?: string; estado?: string }>;
 
@@ -32,12 +33,14 @@ function Filtro({ href, activo, children }: { href: string; activo: boolean; chi
 }
 
 export default async function SolicitudesPage({ searchParams }: { searchParams: Params }) {
-  const usuario = await exigirRol("vendedor", "trade");
-  // Trade Marketing ve las solicitudes de todos los vendedores; cada vendedor solo las suyas.
-  const veTodas = usuario.rol === "trade" || usuario.rol === "admin";
+  const usuario = await exigirRol("vendedor", "trade", "director");
+  // Trade Marketing y la Gerencia comercial ven las solicitudes de todos los vendedores; cada vendedor solo las suyas.
+  const esGerencia = usuario.rol === "director";
+  const veTodas = usuario.rol === "trade" || usuario.rol === "admin" || esGerencia;
   const sp = await searchParams;
   const { actual, lista } = await periodoSeleccionado(sp.p);
   const publicado = actual.estado === "publicado";
+  const comentarios = veTodas ? await comentariosDeSemana(actual.id) : new Map();
 
   const [registros, canales] = await Promise.all([
     sql`SELECT s.id, s.fecha::text, s.hora::text, s.notas, s.prioridad, s.extemporanea, s.estado, s.vendedor_id, s.canal AS canal_codigo,
@@ -89,9 +92,11 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
         detalle={`${veTodas ? `${todas.length} solicitudes de los vendedores. ` : ""}Se reciben hasta el ${fechaLarga(actual.limite_solicitudes)} a las ${hora(actual.limite_solicitudes)}.`}
       >
         <SelectorPeriodo ruta="/solicitudes" actual={actual} lista={lista} extra={{ canal, estado: estadoFiltro }} />
-        <Link href="/solicitudes/nueva" className="boton">
-          <Icono nombre="mas" className="size-4" /> Nueva solicitud
-        </Link>
+        {!esGerencia && (
+          <Link href="/solicitudes/nueva" className="boton">
+            <Icono nombre="mas" className="size-4" /> Nueva solicitud
+          </Link>
+        )}
       </Encabezado>
       <Avisos ok={sp.ok} error={sp.error} />
       {veTodas && (
@@ -112,7 +117,11 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
               </Filtro>
             ))}
           </div>
-          <p className="text-xs text-suave">Para asignar impulsadora, aprobar o no aprobar, entra a Programación.</p>
+          <p className="text-xs text-suave">
+            {esGerencia
+              ? "Si necesitas que Trade Marketing revise algo, deja un comentario en la solicitud."
+              : "Para asignar impulsadora, aprobar o no aprobar, entra a Programación."}
+          </p>
         </div>
       )}
       {respondidas.length > 0 && (
@@ -179,6 +188,27 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
                   </form>
                 )}
               </div>
+              {veTodas && (comentarios.get(s.id) ?? []).length > 0 && (
+                <ul id={`c-${s.id}`} className="mt-2 space-y-1.5 scroll-mt-28">
+                  {(comentarios.get(s.id) ?? []).map((c: { cuerpo: string; fecha: string }, n: number) => (
+                    <li key={n} className="rounded-xl bg-gris px-3.5 py-2 text-sm">
+                      <p>{c.cuerpo}</p>
+                      <p className="mt-0.5 text-xs text-suave">Comentario a Trade · {fechaCorta(c.fecha)}, {hora(c.fecha)}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {esGerencia && (
+                <details id={(comentarios.get(s.id) ?? []).length ? undefined : `c-${s.id}`} className="mt-2 scroll-mt-28">
+                  <summary className="cursor-pointer py-1 text-sm font-semibold underline underline-offset-2">Dejar un comentario a Trade</summary>
+                  <form action={comentarSolicitud} className="mt-2 space-y-2">
+                    <input type="hidden" name="id" value={s.id} />
+                    <label htmlFor={`com-${s.id}`} className="sr-only">Comentario para Trade Marketing</label>
+                    <textarea id={`com-${s.id}`} name="comentario" required minLength={3} maxLength={500} rows={2} placeholder="Ej.: Priorizar este punto, es cliente clave." className="campo" />
+                    <button className="boton-sec w-full">Enviar a Trade</button>
+                  </form>
+                </details>
+              )}
             </li>
           );
         })}

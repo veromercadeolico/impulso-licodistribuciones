@@ -70,7 +70,7 @@ export const ROLES: Record<string, string> = {
   vendedor: "Vendedor",
   impulsadora: "Impulsadora",
   lider_canal: "Líder de canal",
-  director: "Director comercial",
+  director: "Gerente comercial",
   supervisor: "Supervisión",
 };
 
