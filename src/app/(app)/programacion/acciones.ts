@@ -201,7 +201,7 @@ export async function aprobarSolicitud(datos: FormData) {
   const horaInicio = String(datos.get("hora_inicio") ?? "");
   const horaFin = String(datos.get("hora_fin") ?? "");
   const motivoExcepcion = String(datos.get("motivo_excepcion") ?? "").trim() || null;
-  const motivoCambio = String(datos.get("motivo_cambio") ?? "").trim();
+  let motivoCambio = String(datos.get("motivo_cambio") ?? "").trim();
   const ancla = `#s-${id}`;
 
   if (!impulsadoraId) volver(periodoId, "error", "Asigna una impulsadora antes de aprobar.", ancla);
@@ -242,8 +242,9 @@ export async function aprobarSolicitud(datos: FormData) {
   // Cambio de lugar (en el mismo municipio): el vendedor ve el motivo.
   const lugarNuevo = String(datos.get("lugar") ?? "").trim().slice(0, 120);
   const lugarCambiado = !!lugarNuevo && lugarNuevo.toLowerCase() !== String(s.lugar).toLowerCase();
+  // Si no escriben motivo al cambiar el lugar, se usa uno general (el vendedor lo ve en su solicitud).
   if (lugarCambiado && !motivoCambio) {
-    volver(periodoId, "error", `El vendedor pidió ${s.lugar}: escribe el motivo del cambio de lugar.`, ancla);
+    motivoCambio = autor.rol === "supervisor" ? "Cambio de lugar por Supervisión" : "Cambio de lugar por Trade Marketing";
   }
 
   const alertas = evaluarTurno(

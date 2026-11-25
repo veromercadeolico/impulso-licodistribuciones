@@ -470,6 +470,7 @@ export default async function ProgramacionPage({ searchParams }: { searchParams:
                 <div className="sm:col-span-3 lg:col-span-4">
                   <label htmlFor={`lug-${s.id}`} className="etiqueta">Lugar (en {s.municipio})</label>
                   <input id={`lug-${s.id}`} name="lugar" list="lista-puntos-prog" defaultValue={s.lugar} maxLength={120} required className="campo" />
+                  <p className="mt-1 text-xs text-suave">Para cambiar el lugar escribe el nuevo y toca {s.estado === "aprobada" ? "Guardar cambios" : "Aprobar"}. El motivo es opcional.</p>
                 </div>
                 <div className="sm:col-span-3 lg:col-span-1">
                   <label htmlFor={`imp-${s.id}`} className="etiqueta">Impulsadora</label>
