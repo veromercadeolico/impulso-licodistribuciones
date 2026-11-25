@@ -34,7 +34,7 @@ export function FiltroSolicitudes({ lista, clave, canales, dias }: { lista: stri
       const d = li.dataset;
       const ok =
         (!f.canal || d.canal === f.canal) &&
-        (!f.estado || d.estado === f.estado) &&
+        (!f.estado || (f.estado === "sin_impulsadora" ? d.sinimp === "1" : d.estado === f.estado)) &&
         (!f.dia || d.dia === f.dia) &&
         palabras.every((p) => normalizar(d.texto ?? "").includes(p));
       li.hidden = !ok;
@@ -69,6 +69,7 @@ export function FiltroSolicitudes({ lista, clave, canales, dias }: { lista: stri
         <select aria-label="Estado" value={f.estado} onChange={cambiar("estado")} className="campo">
           <option value="">Todos los estados</option>
           <option value="pendiente">Pendientes</option>
+          <option value="sin_impulsadora">Sin impulsadora (pendientes)</option>
           <option value="aprobada">Aprobadas</option>
           <option value="rechazada">No aprobadas</option>
         </select>

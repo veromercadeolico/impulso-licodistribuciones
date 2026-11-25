@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Icono } from "@/components/iconos";
 import { FiltroSolicitudes } from "@/components/FiltroSolicitudes";
+import { NoAprobarVarias } from "@/components/NoAprobarVarias";
 import { Avisos, Encabezado, Insignia, Kpi, SelectorPeriodo, Tarjeta, Uniforme, Vacio } from "@/components/ui";
 import { exigirRol } from "@/lib/auth";
 import { sql } from "@/lib/db";
@@ -21,6 +22,7 @@ import {
   publicarProgramacion,
   quitarDegustacion,
   rechazarSolicitud,
+  rechazarVarias,
 } from "./acciones";
 import { PestanasProgramacion } from "./pestanas";
 
@@ -293,6 +295,9 @@ export default async function ProgramacionPage({ searchParams }: { searchParams:
           dias={[...new Set(orden.map((s) => s.fecha as string))].sort().map((d) => ({ valor: d, texto: fechaCorta(d) }))}
         />
       )}
+      {orden.length > 0 && esTrade && !esSupervision && !soloLectura && (
+        <NoAprobarVarias accion={rechazarVarias} periodo={actual.id} lista="lista-solicitudes" />
+      )}
       <datalist id="lista-puntos-prog">
         {puntos.map((p) => <option key={p.nombre} value={p.nombre} />)}
       </datalist>
@@ -371,12 +376,17 @@ export default async function ProgramacionPage({ searchParams }: { searchParams:
               className="scroll-mt-28 tarjeta"
               data-canal={s.canal_codigo}
               data-estado={s.estado}
+              data-sinimp={s.estado === "pendiente" && !s.turno_id ? "1" : "0"}
               data-dia={s.fecha}
               data-texto={[s.lugar, s.vendedor, s.municipio, s.canal, s.marca, s.notas, s.obsequios, s.direccion].filter(Boolean).join(" ")}
             >
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-suave">#{i + 1} · {s.canal} · {s.vendedor}</p>
+                  <p className="text-xs font-semibold text-suave">
+                    {esTrade && !esSupervision && !soloLectura && s.estado === "pendiente" && (
+                      <input type="checkbox" name="ids" value={s.id} form="no-aprobar-varias" aria-label={`Marcar ${s.lugar} para no aprobar`} className="mr-2 size-4 align-middle accent-marca" />
+                    )}
+                    #{i + 1} · {s.canal} · {s.vendedor}</p>
                   <h3 className="font-semibold">{s.lugar}</h3>
                   <p className="text-sm text-suave">
                     {s.municipio} · {fechaCorta(s.fecha)}, {hora(s.hora)} · {s.marca}

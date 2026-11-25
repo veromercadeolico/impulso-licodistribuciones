@@ -363,6 +363,45 @@ export async function rechazarSolicitud(datos: FormData) {
   volver(periodoId, "ok", "Solicitud marcada como no aprobada.", `#s-${id}`);
 }
 
+/** Trade marca varias solicitudes pendientes como no aprobadas con un mismo motivo (por ejemplo, por disponibilidad). */
+export async function rechazarVarias(datos: FormData) {
+  const periodoId = String(datos.get("periodo"));
+  const autor = await exigirEdicion(periodoId);
+  if (autor.rol !== "trade") volver(periodoId, "error", "Solo Trade Marketing puede no aprobar varias a la vez.");
+  const motivo = String(datos.get("motivo") ?? "").trim().slice(0, 300);
+  const ids = [...new Set(datos.getAll("ids").map(String))].filter((x) => /^[0-9a-f-]{36}$/.test(x));
+  if (!motivo) volver(periodoId, "error", "Escribe el motivo para no aprobar las solicitudes.");
+  if (!ids.length) volver(periodoId, "error", "Marca al menos una solicitud.");
+
+  const lista = await sql`SELECT s.id, s.vendedor_id, s.fecha::text, p.nombre AS lugar, pe.estado AS periodo_estado,
+      t.id AS turno_id, t.publicado, t.impulsadora_id
+    FROM solicitudes s JOIN puntos p ON p.id = s.punto_id JOIN periodos pe ON pe.id = s.periodo_id
+    LEFT JOIN turnos t ON t.solicitud_id = s.id AND NOT t.cancelado
+    WHERE s.id = ANY(${ids}::uuid[]) AND s.periodo_id = ${periodoId} AND s.estado = 'pendiente'`;
+  for (const s of lista) {
+    if (s.turno_id && s.publicado) {
+      await sql.transaction([
+        sql`UPDATE turnos SET cancelado = true WHERE id = ${s.turno_id}`,
+        sql`INSERT INTO cambios_turno (turno_id, autor_id, motivo, detalle) VALUES (${s.turno_id}, ${autor.id}, ${motivo}, 'Turno cancelado')`,
+      ]);
+    } else if (s.turno_id) {
+      await sql`DELETE FROM turnos WHERE id = ${s.turno_id}`;
+    }
+    await sql`UPDATE solicitudes SET estado = 'rechazada', motivo_rechazo = ${motivo} WHERE id = ${s.id}`;
+    if (s.periodo_estado === "publicado") {
+      await notificar([s.vendedor_id, s.publicado ? s.impulsadora_id : null], {
+        titulo: "Solicitud no aprobada",
+        cuerpo: `${s.lugar}, ${fechaCorta(s.fecha)}. Motivo: ${motivo}`,
+        enlace: "/solicitudes",
+        correo: true,
+      });
+    }
+  }
+  await recalcularAlertas(periodoId);
+  revalidatePath("/programacion");
+  volver(periodoId, "ok", `${lista.length === 1 ? "1 solicitud marcada" : `${lista.length} solicitudes marcadas`} como no aprobadas.`);
+}
+
 export async function aprobarSinAlertas(datos: FormData) {
   await exigirRol("trade");
   const periodoId = String(datos.get("periodo"));
