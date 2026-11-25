@@ -62,24 +62,42 @@ export default async function NuevaSolicitudPage({ searchParams }: { searchParam
           <fieldset className="min-w-0">
             <legend className="etiqueta">Marcas a activar</legend>
             <p className="mb-2 text-xs text-suave">
-              Puedes elegir varias marcas y cuántas impulsadoras necesitas de cada una en el mismo lugar.
+              Marca una o varias. En cada marca elige cuántas impulsadoras necesitas y, si quieres, la degustación de cada impulsadora.
             </p>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-2 lg:grid-cols-2">
               {marcas.map((m) => (
-                <div key={m.codigo} className="flex min-h-12 items-center gap-2 rounded-lg border border-linea bg-white px-3 py-2 text-sm has-[:checked]:border-tinta has-[:checked]:bg-gris">
-                  <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
+                <div key={m.codigo} className="min-w-0 rounded-lg border border-linea bg-white px-3 py-2 text-sm has-[:checked]:border-tinta has-[:checked]:bg-gris">
+                  <label className="flex min-h-10 min-w-0 cursor-pointer items-center gap-3">
                     <input type="checkbox" name="marca" value={m.codigo} className="size-5 accent-marca" />
-                    <span className="min-w-0 flex-1">{m.nombre}</span>
+                    <span className="min-w-0 flex-1 font-semibold">{m.nombre}</span>
                     <Uniforme codigo={m.uniforme} />
                     <span className="sr-only">uniforme {COLOR_UNIFORME[m.uniforme]}</span>
                   </label>
-                  <select name={`cant_${m.codigo}`} defaultValue="1" aria-label={`Impulsadoras de ${m.nombre}`} title="Impulsadoras" className="campo w-16 shrink-0 px-2">
-                    {[1, 2, 3, 4, 5, 6].map((n) => <option key={n} value={n}>{n}</option>)}
-                  </select>
+                  <div className="mt-2 grid grid-cols-[4.5rem_4.5rem_minmax(0,1fr)] gap-2">
+                    <label className="min-w-0 text-xs text-suave">
+                      Impulsadoras
+                      <select name={`cant_${m.codigo}`} defaultValue="1" className="campo mt-0.5 px-2">
+                        {[1, 2, 3, 4, 5, 6].map((n) => <option key={n} value={n}>{n}</option>)}
+                      </select>
+                    </label>
+                    <label className="min-w-0 text-xs text-suave">
+                      Degustación
+                      <input name={`deg_cant_${m.codigo}`} type="number" min={1} max={20} inputMode="numeric" placeholder="Cant." className="campo mt-0.5 px-2" />
+                    </label>
+                    <label className="min-w-0 text-xs text-suave">
+                      Presentación
+                      <select name={`deg_pres_${m.codigo}`} defaultValue="" className="campo mt-0.5 px-2">
+                        <option value="">Selecciona</option>
+                        {PRESENTACIONES.map((p) => <option key={p} value={p}>{p}</option>)}
+                      </select>
+                    </label>
+                  </div>
                 </div>
               ))}
             </div>
-            <p className="mt-1 text-xs text-suave">El número al lado de cada marca es cuántas impulsadoras de esa marca. Cada una es un turno.</p>
+            <p className="mt-1 text-xs text-suave">
+              Cada impulsadora es un turno. La degustación es por impulsadora (por ejemplo 2 botellas cada una); si no la llenas, se asigna la de tu canal.
+            </p>
           </fieldset>
           <div>
             <label htmlFor="lugar" className="etiqueta">Lugar o establecimiento</label>
@@ -110,25 +128,6 @@ export default async function NuevaSolicitudPage({ searchParams }: { searchParam
               </select>
             </div>
           </div>
-          <fieldset>
-            <legend className="etiqueta">Degustación que necesitas (opcional)</legend>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="deg_cantidad" className="text-xs text-suave">Cantidad por marca</label>
-                <input id="deg_cantidad" name="deg_cantidad" type="number" min={1} max={20} inputMode="numeric" className="campo" />
-              </div>
-              <div>
-                <label htmlFor="deg_presentacion" className="text-xs text-suave">Presentación</label>
-                <select id="deg_presentacion" name="deg_presentacion" defaultValue="" className="campo">
-                  <option value="">Selecciona</option>
-                  {PRESENTACIONES.map((p) => <option key={p} value={p}>{p}</option>)}
-                </select>
-              </div>
-            </div>
-            <p className="mt-1 text-xs text-suave">
-              Es de la marca que eliges arriba (si eliges varias, esta cantidad va para cada una). Si no la llenas, se asigna la de tu canal.
-            </p>
-          </fieldset>
           <div>
             <label htmlFor="obsequios" className="etiqueta">Producto para regalar (opcional)</label>
             <input id="obsequios" name="obsequios" className="campo" maxLength={300} placeholder="Ejemplo: 6 cuartos de ron, 20 shots de Amarillo" />

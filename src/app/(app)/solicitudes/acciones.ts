@@ -29,13 +29,16 @@ export async function crearSolicitud(datos: FormData) {
   const obsequios = String(datos.get("obsequios") ?? "").trim().slice(0, 300) || null;
   const prioridad = Number(datos.get("prioridad")) || null;
   const servicio = String(datos.get("servicio") ?? "impulso");
-  // Degustación que pide el vendedor (opcional): cantidad y presentación, de la marca de cada solicitud.
-  const degCantidad = Number(datos.get("deg_cantidad")) || 0;
-  const degPresentacion = texto("deg_presentacion", 20);
-  if ((degCantidad && !degPresentacion) || (!degCantidad && degPresentacion)) error("Para la degustación indica la cantidad y la presentación, o deja las dos vacías.");
-  if (degCantidad && (degCantidad < 1 || degCantidad > 20 || !Number.isInteger(degCantidad))) error("La cantidad de degustación debe estar entre 1 y 20.");
-  if (degPresentacion && !PRESENTACIONES.includes(degPresentacion)) error("La presentación de la degustación no es válida.");
-  const degustacionPedida = degCantidad ? JSON.stringify({ presentacion: degPresentacion, cantidad: degCantidad }) : null;
+  // Degustación que pide el vendedor (opcional), por marca y por impulsadora: cantidad y presentación.
+  const degustacionPorMarca = new Map<string, string | null>();
+  for (const m of marcas) {
+    const cantidad = Number(datos.get(`deg_cant_${m}`)) || 0;
+    const presentacion = texto(`deg_pres_${m}`, 20);
+    if ((cantidad && !presentacion) || (!cantidad && presentacion)) error("Para la degustación de cada marca indica la cantidad y la presentación, o deja las dos vacías.");
+    if (cantidad && (cantidad < 1 || cantidad > 20 || !Number.isInteger(cantidad))) error("La cantidad de degustación debe estar entre 1 y 20.");
+    if (presentacion && !PRESENTACIONES.includes(presentacion)) error("La presentación de la degustación no es válida.");
+    degustacionPorMarca.set(m, cantidad ? JSON.stringify({ presentacion, cantidad }) : null);
+  }
   if (!SERVICIOS[servicio]) error("Elige el tipo de servicio: Impulso o Bartender.");
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha) || !/^\d{2}:\d{2}$/.test(hora)) error("Indica la fecha y la hora de la activación.");
@@ -64,7 +67,7 @@ export async function crearSolicitud(datos: FormData) {
   await sql.transaction(
     unidades.map(
       (marca) => sql`INSERT INTO solicitudes (periodo_id, vendedor_id, canal, fecha, hora, marca, punto_id, notas, obsequios, prioridad, extemporanea, grupo, servicio, degustacion_pedida)
-        VALUES (${periodo.id}, ${usuario.id}, ${canal}, ${fecha}, ${hora}, ${marca}, ${punto.id}, ${notas}, ${obsequios}, ${prioridad}, ${extemporanea}, ${grupo}, ${servicio}, ${degustacionPedida}::jsonb)`,
+        VALUES (${periodo.id}, ${usuario.id}, ${canal}, ${fecha}, ${hora}, ${marca}, ${punto.id}, ${notas}, ${obsequios}, ${prioridad}, ${extemporanea}, ${grupo}, ${servicio}, ${degustacionPorMarca.get(marca) ?? null}::jsonb)`,
     ),
   );
 
