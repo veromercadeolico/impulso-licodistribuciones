@@ -240,3 +240,12 @@ test("las de fuera de Armenia solo cubren su municipio, salvo las excepciones de
   assert.equal(puedeCubrir(danna, "LA TEBAIDA", "2026-11-28 14:00"), false);
   assert.equal(puedeCubrir(armenia, "FILANDIA", "2026-11-28 21:00"), true);
 });
+
+test("bloquea municipios y sectores sin impulso en la semana indicada", async () => {
+  const { sinImpulsoEstaSemana } = await import("./reglas.ts");
+  assert.equal(sinImpulsoEstaSemana("2026-11-26", ["CIRCASIA", "Barkasa", null]), true);
+  assert.equal(sinImpulsoEstaSemana("2026-11-26", ["CALARCÁ", "Olímpica", null]), true);
+  assert.equal(sinImpulsoEstaSemana("2026-11-26", ["CALARCA", "Tienda", "Corregimiento Barcelona"]), true);
+  assert.equal(sinImpulsoEstaSemana("2026-11-26", ["ARMENIA", "Éxito Centro", null]), false);
+  assert.equal(sinImpulsoEstaSemana("2026-12-03", ["CIRCASIA", "Barkasa", null]), false);
+});

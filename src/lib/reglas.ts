@@ -128,6 +128,21 @@ export type ImpulsadoraPropuesta = { id: string; nombre: string; municipio: stri
 /** Horario final del turno: puede quedar corrido media hora respecto a la solicitud (corridoMin = 30 o -30). */
 export type Asignacion = { solicitudId: string; impulsadoraId: string; alertas: Alerta[]; inicio: string; fin: string; corridoMin: number };
 /**
+ * Municipios o sectores donde no se asigna impulso en una semana, por fecha de inicio de la semana (jueves).
+ * Las solicitudes de esos lugares quedan sin impulsadora para que Trade las marque "No aprobar".
+ */
+export const SIN_IMPULSO_POR_SEMANA: Record<string, string[]> = {
+  "2026-11-26": ["CIRCASIA", "CALARCA", "BARCELONA"],
+};
+const sinTildes = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase();
+/** Si la solicitud es de un municipio o sector bloqueado esa semana (busca en municipio, lugar y dirección). */
+export function sinImpulsoEstaSemana(inicioSemana: string, textos: (string | null | undefined)[]): boolean {
+  const bloqueados = SIN_IMPULSO_POR_SEMANA[inicioSemana] ?? [];
+  const todo = sinTildes(textos.filter(Boolean).join(" "));
+  return bloqueados.some((b) => todo.includes(b));
+}
+
+/**
  * Quién puede cubrir turnos fuera de su municipio. Las de Armenia pueden ir a cualquier municipio.
  * Las que viven en otro municipio solo cubren el suyo, salvo estas excepciones (por id de usuario).
  */

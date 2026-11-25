@@ -16,6 +16,7 @@ import {
   evaluarTurno,
   generarPropuesta,
   requiereMotivo,
+  sinImpulsoEstaSemana,
   sumarMinutos,
   type TurnoHorario,
 } from "@/lib/reglas";
@@ -121,9 +122,10 @@ export async function proponerProgramacion(datos: FormData) {
     WHERE t.solicitud_id = s.id AND t.periodo_id = ${periodoId} AND s.estado = 'pendiente'
       AND NOT t.publicado AND NOT t.ajuste_manual`;
 
-  const [solicitudes, impulsadoras, fijos, disponibles] = await Promise.all([
+  const [[semana], todasPendientes, impulsadoras, fijos, disponibles] = await Promise.all([
+    sql`SELECT fecha_inicio::text FROM periodos WHERE id = ${periodoId}`,
     sql`SELECT s.id, s.prioridad, s.creado_en::text AS creado, s.fecha::text, s.hora::text, s.canal, s.punto_id, s.marca,
-        s.servicio, m.uniforme, p.municipio
+        s.servicio, m.uniforme, p.municipio, p.nombre AS lugar, p.direccion
       FROM solicitudes s JOIN puntos p ON p.id = s.punto_id JOIN marcas m ON m.codigo = s.marca
       WHERE s.periodo_id = ${periodoId} AND s.estado = 'pendiente'
         AND NOT EXISTS (SELECT 1 FROM turnos t WHERE t.solicitud_id = s.id)`,
@@ -134,6 +136,8 @@ export async function proponerProgramacion(datos: FormData) {
 
   if (!disponibles.size) volver(periodoId, "error", "Primero marca la disponibilidad de las impulsadoras.");
 
+  // Municipios o sectores sin impulso esta semana: sus solicitudes quedan sin impulsadora.
+  const solicitudes = todasPendientes.filter((s) => !sinImpulsoEstaSemana(semana.fecha_inicio, [s.municipio, s.lugar, s.direccion]));
   const porId = new Map(solicitudes.map((s) => [s.id, s]));
   const { asignaciones, sinCobertura } = generarPropuesta(
     solicitudes.map((s) => {
@@ -183,6 +187,7 @@ export async function proponerProgramacion(datos: FormData) {
     periodoId,
     "ok",
     `Propuesta lista: ${filas.length} asignadas y ${sinCobertura.length} sin cobertura.` +
+      (todasPendientes.length > solicitudes.length ? ` ${todasPendientes.length - solicitudes.length} quedaron sin impulso por ser de municipios bloqueados esta semana.` : "") +
       (eventosFuera ? ` Revisa ${eventosFuera === 1 ? "1 evento asignado" : `${eventosFuera} eventos asignados`} a impulsadoras de otro municipio (te llegó el aviso).` : "") +
       (corridos ? ` ${corridos === 1 ? "1 turno quedó corrido" : `${corridos} turnos quedaron corridos`} media hora para respetar el descanso (míralos en el Excel por día).` : ""),
   );
