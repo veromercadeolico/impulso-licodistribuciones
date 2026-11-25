@@ -10,7 +10,9 @@ import { estadoSemana } from "@/lib/flujoSemana";
 import { notificar } from "@/lib/notificar";
 import {
   claveDisponibilidad,
+  DEGUSTACION_POR_CANAL,
   DURACION_TURNO_MIN,
+  esConsumoTarde,
   evaluarTurno,
   generarPropuesta,
   requiereMotivo,
@@ -39,6 +41,22 @@ async function disponiblesDe(periodoId: string): Promise<Set<string>> {
   const filas = await sql`SELECT d.impulsadora_id, d.fecha::text, d.franja FROM disponibilidad d
     JOIN periodos p ON d.fecha BETWEEN p.fecha_inicio AND p.fecha_fin WHERE p.id = ${periodoId}`;
   return new Set(filas.map((f) => `${f.impulsadora_id}|${f.fecha}|${f.franja}`));
+}
+
+/**
+ * Pone degustación a los turnos de la semana que todavía no tienen ninguna: la que pidió el vendedor en la
+ * solicitud y, si no pidió, la de la tabla por canal. Siempre de la marca del turno.
+ */
+async function asignarDegustacionBase(periodoId: string) {
+  const tabla = Object.entries(DEGUSTACION_POR_CANAL).map(([canal, d]) => ({ canal, ...d }));
+  await sql`INSERT INTO degustacion (turno_id, marca, presentacion, asignado, tipo)
+    SELECT t.id, t.marca, COALESCE(s.degustacion_pedida->>'presentacion', x.presentacion),
+      COALESCE((s.degustacion_pedida->>'cantidad')::int, x.cantidad), 'degustacion'
+    FROM turnos t LEFT JOIN solicitudes s ON s.id = t.solicitud_id
+    LEFT JOIN jsonb_to_recordset(${JSON.stringify(tabla)}::jsonb) AS x(canal text, presentacion text, cantidad int) ON x.canal = t.canal
+    WHERE t.periodo_id = ${periodoId} AND NOT t.cancelado AND NOT EXISTS (SELECT 1 FROM degustacion d WHERE d.turno_id = t.id)
+      AND COALESCE(s.degustacion_pedida->>'presentacion', x.presentacion) IS NOT NULL
+    ON CONFLICT (turno_id, marca, presentacion) DO NOTHING`;
 }
 
 /**
@@ -156,6 +174,7 @@ export async function proponerProgramacion(datos: FormData) {
       FROM jsonb_to_recordset(${JSON.stringify(filas)}::jsonb) AS x(solicitud_id uuid, impulsadora_id uuid, canal text,
         punto_id uuid, marca text, uniforme text, servicio text, inicio timestamp, fin timestamp)`;
   }
+  await asignarDegustacionBase(periodoId);
   await recalcularAlertas(periodoId);
   const eventosFuera = await avisarEventosFuera(periodoId);
   const corridos = asignaciones.filter((a) => a.corridoMin !== 0).length;
@@ -185,6 +204,11 @@ export async function aprobarSolicitud(datos: FormData) {
     FROM solicitudes s JOIN marcas m ON m.codigo = s.marca JOIN puntos p ON p.id = s.punto_id WHERE s.id = ${id}`;
   if (!s) volver(periodoId, "error", "La solicitud ya no existe.");
 
+  if (s.estado === "pendiente" && esConsumoTarde(s.canal, horaInicio) && datos.get("confirma_consumo_tarde") !== "si") {
+    volver(periodoId, "error", autor.rol === "supervisor"
+      ? "Es una solicitud de Consumo en la tarde: Trade Marketing debe confirmarla antes de aprobarla."
+      : "Es una solicitud de Consumo en la tarde: marca la confirmación para aprobarla.", ancla);
+  }
   const [periodo] = await sql`SELECT estado, fecha_inicio::text, fecha_fin::text FROM periodos WHERE id = ${periodoId}`;
   const fecha = String(datos.get("fecha") ?? "") || s.dia;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha) || fecha < periodo.fecha_inicio || fecha > periodo.fecha_fin) {
@@ -340,9 +364,14 @@ export async function aprobarSinAlertas(datos: FormData) {
   await exigirEdicion(periodoId);
   const filas = await sql`UPDATE solicitudes s SET estado = 'aprobada'
     FROM turnos t WHERE t.solicitud_id = s.id AND s.periodo_id = ${periodoId} AND s.estado = 'pendiente'
-      AND NOT t.cancelado AND NOT t.alertas @> '[{"requiereMotivo": true}]'::jsonb RETURNING s.id`;
+      AND NOT t.cancelado AND NOT t.alertas @> '[{"requiereMotivo": true}]'::jsonb
+      AND NOT (s.canal = 'CONSUMO' AND s.hora < '18:00') RETURNING s.id`;
+  // Consumo en la tarde se confirma una por una.
+  const [{ n: tarde }] = await sql`SELECT count(*)::int AS n FROM solicitudes s JOIN turnos t ON t.solicitud_id = s.id AND NOT t.cancelado
+    WHERE s.periodo_id = ${periodoId} AND s.estado = 'pendiente' AND s.canal = 'CONSUMO' AND s.hora < '18:00'`;
   revalidatePath("/programacion");
-  volver(periodoId, "ok", `${filas.length} solicitudes aprobadas.`);
+  volver(periodoId, "ok", `${filas.length} solicitudes aprobadas.` +
+    (tarde ? ` ${tarde === 1 ? "Queda 1 solicitud" : `Quedan ${tarde} solicitudes`} de Consumo en la tarde para que la confirmes una por una.` : ""));
 }
 
 export async function publicarProgramacion(datos: FormData) {

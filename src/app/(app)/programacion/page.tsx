@@ -6,7 +6,7 @@ import { exigirRol } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { fechaCorta, hora, PRESENTACIONES, PRIORIDADES, sumarDias } from "@/lib/formato";
 import { periodoSeleccionado } from "@/lib/periodos";
-import { DIAS_ALERTA_REPORTE, franjaDe, ordenarSolicitudes, sumarMinutos, type Alerta } from "@/lib/reglas";
+import { DIAS_ALERTA_REPORTE, esConsumoTarde, franjaDe, ordenarSolicitudes, sumarMinutos, type Alerta } from "@/lib/reglas";
 import { DETALLE_APROBADO_TURNO, pasosPermitidos, puedeEditar, puedePublicar, type EstadoFlujo } from "@/lib/flujo";
 import { comentariosDeSemana } from "@/lib/comentarios";
 import { estadoSemana } from "@/lib/flujoSemana";
@@ -64,7 +64,7 @@ export default async function ProgramacionPage({ searchParams }: { searchParams:
   const nombresSupervision = supervision.map((s) => String(s.nombre).split(" ")[0]).join(" y ") || "Supervisión";
 
   const [solicitudes, impulsadoras, disponibilidad, canales] = await Promise.all([
-    sql`SELECT s.id, s.fecha::text, s.hora::text, s.notas, s.obsequios, s.grupo, s.canal AS canal_codigo, p.direccion, s.prioridad, s.extemporanea, s.estado, s.motivo_rechazo, s.servicio,
+    sql`SELECT s.id, s.fecha::text, s.hora::text, s.notas, s.obsequios, s.grupo, s.canal AS canal_codigo, p.direccion, s.prioridad, s.extemporanea, s.estado, s.motivo_rechazo, s.servicio, s.degustacion_pedida,
         s.creado_en::text AS creado_orden, (s.creado_en AT TIME ZONE 'America/Bogota')::text AS creado,
         c.nombre AS canal, m.nombre AS marca, m.uniforme, p.nombre AS lugar, p.municipio, v.nombre AS vendedor,
         t.id AS turno_id, t.impulsadora_id, t.inicio::text, t.fin::text, t.alertas, t.motivo_excepcion, t.publicado, s.marca AS marca_codigo
@@ -388,6 +388,7 @@ export default async function ProgramacionPage({ searchParams }: { searchParams:
                   {s.grupo && <Insignia>Varias marcas</Insignia>}
                   {s.prioridad ? <Insignia tono="marca">Relevancia {PRIORIDADES[s.prioridad]}</Insignia> : <Insignia>Por llegada</Insignia>}
                   {s.extemporanea && <Insignia tono="alerta">Extemporánea</Insignia>}
+                  {s.estado === "pendiente" && esConsumoTarde(s.canal_codigo, s.hora) && <Insignia tono="alerta">Consumo en la tarde · confirmar</Insignia>}
                   {s.estado === "aprobada" && <Insignia tono="ok">Aprobada</Insignia>}
                   {s.estado === "rechazada" && <Insignia tono="error">No aprobada</Insignia>}
                   {s.estado === "pendiente" && <Insignia>Pendiente</Insignia>}
@@ -396,6 +397,9 @@ export default async function ProgramacionPage({ searchParams }: { searchParams:
               {s.direccion && <p className="mt-1 text-sm text-suave">Dirección: {s.direccion}</p>}
               {s.notas && (
                 <p className="mt-2 text-sm"><span className="font-semibold">Adicionales:</span> {s.notas}</p>
+              )}
+              {s.degustacion_pedida && (
+                <p className="mt-1 text-sm"><span className="font-semibold">Degustación que pide:</span> {s.degustacion_pedida.cantidad} {String(s.degustacion_pedida.presentacion).toLowerCase()}{s.degustacion_pedida.cantidad > 1 ? "s" : ""} de {s.marca}</p>
               )}
               {s.obsequios && (
                 <p className="mt-1 text-sm"><span className="font-semibold">Producto para regalar:</span> {s.obsequios}</p>
@@ -499,6 +503,12 @@ export default async function ProgramacionPage({ searchParams }: { searchParams:
                   </label>
                   <input id={`cam-${s.id}`} name="motivo_cambio" maxLength={300} className="campo" />
                 </div>
+                {s.estado === "pendiente" && esConsumoTarde(s.canal_codigo, s.hora) && (
+                  <label className="sm:col-span-3 lg:col-span-4 flex items-start gap-2 rounded-lg bg-alerta-claro px-3 py-2 text-sm text-alerta">
+                    <input type="checkbox" name="confirma_consumo_tarde" value="si" required={!esSupervision} disabled={esSupervision} className="mt-0.5 size-4" />
+                    <span>{esSupervision ? "Es Consumo en la tarde: debe confirmarla Trade Marketing." : "Confirmo que esta solicitud de Consumo en la tarde va (no es de 9:00 PM)."}</span>
+                  </label>
+                )}
                 <div className="sm:col-span-3 lg:col-span-4">
                   <button className="boton w-full sm:w-auto">{s.estado === "aprobada" ? "Guardar cambios" : "Aprobar"}</button>
                 </div>

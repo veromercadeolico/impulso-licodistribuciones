@@ -220,3 +220,10 @@ test("Consumo en la noche siempre queda a las 9:00 PM; la tarde y otros canales 
   assert.equal(horaSegunCanal("CONSUMO", "12:00"), "12:00");
   assert.equal(horaSegunCanal("TAT", "20:00"), "20:00");
 });
+
+test("reconoce Consumo en la tarde para pedir confirmación", async () => {
+  const { esConsumoTarde } = await import("./reglas.ts");
+  assert.equal(esConsumoTarde("CONSUMO", "12:00:00"), true);
+  assert.equal(esConsumoTarde("CONSUMO", "21:00"), false);
+  assert.equal(esConsumoTarde("SUPERMERCADOS", "12:00"), false);
+});

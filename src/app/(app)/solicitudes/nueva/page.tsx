@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Avisos, Encabezado, Tarjeta, Uniforme } from "@/components/ui";
 import { exigirRol } from "@/lib/auth";
 import { sql } from "@/lib/db";
-import { hoyBogota, MUNICIPIOS, SERVICIOS } from "@/lib/formato";
+import { hoyBogota, MUNICIPIOS, PRESENTACIONES, SERVICIOS } from "@/lib/formato";
 import { crearSolicitud } from "../acciones";
 
 const COLOR_UNIFORME: Record<string, string> = { AA: "amarillo", ESE: "azul", RVC: "rojo" };
@@ -102,6 +102,25 @@ export default async function NuevaSolicitudPage({ searchParams }: { searchParam
               </select>
             </div>
           </div>
+          <fieldset>
+            <legend className="etiqueta">Degustación que necesitas (opcional)</legend>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="deg_cantidad" className="text-xs text-suave">Cantidad por marca</label>
+                <input id="deg_cantidad" name="deg_cantidad" type="number" min={1} max={20} inputMode="numeric" className="campo" />
+              </div>
+              <div>
+                <label htmlFor="deg_presentacion" className="text-xs text-suave">Presentación</label>
+                <select id="deg_presentacion" name="deg_presentacion" defaultValue="" className="campo">
+                  <option value="">Selecciona</option>
+                  {PRESENTACIONES.map((p) => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+            </div>
+            <p className="mt-1 text-xs text-suave">
+              Es de la marca que eliges arriba (si eliges varias, esta cantidad va para cada una). Si no la llenas, se asigna la de tu canal.
+            </p>
+          </fieldset>
           <div>
             <label htmlFor="obsequios" className="etiqueta">Producto para regalar (opcional)</label>
             <input id="obsequios" name="obsequios" className="campo" maxLength={300} placeholder="Ejemplo: 6 cuartos de ron, 20 shots de Amarillo" />

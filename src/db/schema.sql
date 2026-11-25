@@ -246,3 +246,7 @@ CREATE INDEX IF NOT EXISTS turnos_area_persona_idx ON turnos_area (impulsadora_i
 -- Tipo de servicio de cada solicitud y turno: impulso o bartender (noviembre 2026). Lo existente queda como impulso.
 ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS servicio text NOT NULL DEFAULT 'impulso';
 ALTER TABLE turnos ADD COLUMN IF NOT EXISTS servicio text NOT NULL DEFAULT 'impulso';
+
+-- Degustación que pide el vendedor en la solicitud: {"presentacion": "Botella", "cantidad": 2}, de la marca de la solicitud.
+-- Si está vacía, la propuesta usa la tabla por canal (DEGUSTACION_POR_CANAL).
+ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS degustacion_pedida jsonb;
