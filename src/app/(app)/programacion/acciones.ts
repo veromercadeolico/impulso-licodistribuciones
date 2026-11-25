@@ -41,6 +41,29 @@ async function disponiblesDe(periodoId: string): Promise<Set<string>> {
   return new Set(filas.map((f) => `${f.impulsadora_id}|${f.fecha}|${f.franja}`));
 }
 
+/**
+ * Eventos de la propuesta (aún sin publicar) asignados a una impulsadora que vive en otro municipio, por ejemplo
+ * alguien de Armenia para un evento en Montenegro. Avisa a Trade Marketing para que lo revise antes de aprobar.
+ */
+async function avisarEventosFuera(periodoId: string): Promise<number> {
+  const eventos = await sql`SELECT t.inicio::text, p.nombre AS lugar, p.municipio, u.nombre AS impulsadora, u.municipio AS vive
+    FROM turnos t JOIN puntos p ON p.id = t.punto_id JOIN usuarios u ON u.id = t.impulsadora_id
+    WHERE t.periodo_id = ${periodoId} AND t.canal = 'EVENTOS' AND NOT t.cancelado AND NOT t.publicado
+      AND u.municipio IS NOT NULL AND u.municipio <> p.municipio
+    ORDER BY t.inicio`;
+  if (!eventos.length) return 0;
+  const trade = await sql`SELECT id FROM usuarios WHERE rol = 'trade' AND activo`;
+  const lista = eventos
+    .map((e) => `${fechaCorta(e.inicio)} ${horaTexto(e.inicio)}, ${e.lugar} (${e.municipio}): ${e.impulsadora}, vive en ${e.vive}`)
+    .join(". ");
+  await notificar(trade.map((u) => u.id), {
+    titulo: eventos.length === 1 ? "Evento con impulsadora de otro municipio" : `${eventos.length} eventos con impulsadora de otro municipio`,
+    cuerpo: `Revisa antes de aprobar. ${lista}.`,
+    enlace: `/programacion?p=${periodoId}`,
+  });
+  return eventos.length;
+}
+
 async function recalcularAlertas(periodoId: string) {
   const [turnos, disponibles] = await Promise.all([
     sql`SELECT t.id, t.impulsadora_id, t.inicio::text, t.fin::text, p.municipio, u.municipio AS municipio_imp
@@ -134,8 +157,14 @@ export async function proponerProgramacion(datos: FormData) {
         punto_id uuid, marca text, uniforme text, servicio text, inicio timestamp, fin timestamp)`;
   }
   await recalcularAlertas(periodoId);
+  const eventosFuera = await avisarEventosFuera(periodoId);
   revalidatePath("/programacion");
-  volver(periodoId, "ok", `Propuesta lista: ${filas.length} asignadas y ${sinCobertura.length} sin cobertura.`);
+  volver(
+    periodoId,
+    "ok",
+    `Propuesta lista: ${filas.length} asignadas y ${sinCobertura.length} sin cobertura.` +
+      (eventosFuera ? ` Revisa ${eventosFuera === 1 ? "1 evento asignado" : `${eventosFuera} eventos asignados`} a impulsadoras de otro municipio (te llegó el aviso).` : ""),
+  );
 }
 
 export async function aprobarSolicitud(datos: FormData) {
