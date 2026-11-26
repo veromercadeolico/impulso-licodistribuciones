@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Icono } from "@/components/iconos";
 import { FiltroSolicitudes } from "@/components/FiltroSolicitudes";
 import { NoAprobarVarias } from "@/components/NoAprobarVarias";
+import { AprobarVarios } from "@/components/AprobarVarios";
 import { Avisos, Encabezado, Insignia, Kpi, SelectorPeriodo, Tarjeta, Uniforme, Vacio } from "@/components/ui";
 import { exigirRol } from "@/lib/auth";
 import { sql } from "@/lib/db";
@@ -16,6 +17,7 @@ import {
   aprobarSinAlertas,
   aprobarSolicitud,
   aprobarTurnoRevision,
+  aprobarTurnosVarios,
   asignarDegustacion,
   cambiarUniforme,
   avanzarFlujo,
@@ -314,6 +316,9 @@ export default async function ProgramacionPage({ searchParams }: { searchParams:
           dias={[...new Set(orden.map((s) => s.fecha as string))].sort().map((d) => ({ valor: d, texto: fechaCorta(d) }))}
         />
       )}
+      {orden.length > 0 && esSupervision && !soloLectura && (
+        <AprobarVarios accion={aprobarTurnosVarios} periodo={actual.id} lista="lista-solicitudes" />
+      )}
       {orden.length > 0 && esTrade && !esSupervision && !soloLectura && (
         <NoAprobarVarias accion={rechazarVarias} periodo={actual.id} lista="lista-solicitudes" />
       )}
@@ -418,6 +423,9 @@ export default async function ProgramacionPage({ searchParams }: { searchParams:
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="text-xs font-semibold text-suave">
+                    {esSupervision && !soloLectura && s.turno_id && !aprobados.has(s.turno_id) && (
+                      <input type="checkbox" name="ids" value={s.id} form="aprobar-varios" aria-label={`Marcar ${s.lugar} para aprobar`} className="mr-2 size-4 align-middle accent-marca" />
+                    )}
                     {esTrade && !esSupervision && !soloLectura && s.estado === "pendiente" && (
                       <input type="checkbox" name="ids" value={s.id} form="no-aprobar-varias" aria-label={`Marcar ${s.lugar} para no aprobar`} className="mr-2 size-4 align-middle accent-marca" />
                     )}

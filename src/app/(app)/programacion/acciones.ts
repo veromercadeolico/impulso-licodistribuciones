@@ -330,6 +330,27 @@ export async function aprobarTurnoRevision(datos: FormData) {
   volver(periodoId, "ok", "Turno aprobado.", `#s-${solicitudId}`);
 }
 
+/**
+ * Supervisión aprueba varios turnos a la vez durante su revisión: los marcados, o todos los que no tienen
+ * alertas que pidan motivo (modo "sin_alertas").
+ */
+export async function aprobarTurnosVarios(datos: FormData) {
+  const periodoId = String(datos.get("periodo"));
+  const autor = await exigirEdicion(periodoId);
+  if (autor.rol !== "supervisor" && autor.rol !== "admin") volver(periodoId, "error", "Solo Supervisión aprueba turnos en la revisión.");
+  const modo = String(datos.get("modo") ?? "");
+  const ids = [...new Set(datos.getAll("ids").map(String))].filter((x) => /^[0-9a-f-]{36}$/.test(x));
+  const turnos = modo === "sin_alertas"
+    ? await sql`SELECT t.id FROM turnos t WHERE t.periodo_id = ${periodoId} AND NOT t.cancelado AND t.solicitud_id IS NOT NULL
+        AND NOT t.alertas @> '[{"requiereMotivo": true}]'::jsonb
+        AND NOT EXISTS (SELECT 1 FROM cambios_turno c WHERE c.turno_id = t.id AND c.detalle = ${DETALLE_APROBADO_TURNO})`
+    : await sql`SELECT t.id FROM turnos t WHERE t.periodo_id = ${periodoId} AND NOT t.cancelado AND t.solicitud_id = ANY(${ids}::uuid[])`;
+  if (!turnos.length) volver(periodoId, "error", modo === "sin_alertas" ? "No hay turnos sin alertas por aprobar." : "Marca al menos un turno.");
+  for (const t of turnos) await registrarAprobacionTurno(t.id, autor.id);
+  revalidatePath("/programacion");
+  volver(periodoId, "ok", `${turnos.length === 1 ? "1 turno aprobado" : `${turnos.length} turnos aprobados`}.`);
+}
+
 export async function rechazarSolicitud(datos: FormData) {
   const id = String(datos.get("id"));
   const periodoId = String(datos.get("periodo"));
