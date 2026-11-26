@@ -316,6 +316,41 @@ export default async function ProgramacionPage({ searchParams }: { searchParams:
           dias={[...new Set(orden.map((s) => s.fecha as string))].sort().map((d) => ({ valor: d, texto: fechaCorta(d) }))}
         />
       )}
+      {esSupervision && flujo.publicada && (() => {
+        // Semana publicada: lista de turnos que Trade cambió y Supervisión aún no aprueba.
+        const cambios = orden.filter((s) => s.turno_id && !aprobados.has(s.turno_id));
+        return (
+          <div className="mb-4 rounded-xl border border-alerta bg-alerta-claro px-4 py-3">
+            <p className="font-semibold text-alerta">
+              {cambios.length ? `Cambios por aprobar (${cambios.length})` : "No hay cambios por aprobar"}
+            </p>
+            {cambios.length > 0 && (
+              <>
+                <ul className="mt-2 divide-y divide-linea rounded-lg border border-linea bg-white">
+                  {cambios.map((s) => (
+                    <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
+                      <a href={`#s-${s.id}`} className="min-w-0 underline underline-offset-2">
+                        <strong>{fechaCorta(s.inicio ?? s.fecha)}</strong> · {hora(s.inicio ?? `${s.fecha} ${s.hora}`)} · {s.lugar} ({s.municipio}) ·{" "}
+                        {impulsadoras.find((o) => o.id === s.impulsadora_id)?.nombre ?? "Sin impulsadora"}
+                      </a>
+                      <form action={aprobarTurnoRevision}>
+                        <input type="hidden" name="id" value={s.id} />
+                        <input type="hidden" name="periodo" value={actual.id} />
+                        <button className="boton-sec text-sm">Aprobar</button>
+                      </form>
+                    </li>
+                  ))}
+                </ul>
+                <form action={aprobarTurnosVarios} className="mt-2">
+                  <input type="hidden" name="periodo" value={actual.id} />
+                  {cambios.map((s) => <input key={s.id} type="hidden" name="ids" value={s.id} />)}
+                  <button className="boton">Aprobar todos los cambios ({cambios.length})</button>
+                </form>
+              </>
+            )}
+          </div>
+        );
+      })()}
       {orden.length > 0 && esSupervision && (!soloLectura || flujo.publicada) && (
         <AprobarVarios accion={aprobarTurnosVarios} periodo={actual.id} lista="lista-solicitudes" />
       )}
