@@ -437,8 +437,9 @@ function hojaDegustacion(libro: ExcelJS.Workbook, deg: DegustacionExcel[], ofici
   fila(5, "OBSEQUIOS", sumar("obsequio"));
   fila(6, "TOTAL", (c) => ({ formula: `SUM(${letra(c)}4:${letra(c)}5)` }), AZUL_DESTINO);
   fila(7, "OFICINA", enOficina, VERDE_CLARO);
-  fila(8, "A SOLICITAR", (c) => ({ formula: `+${letra(c)}6-${letra(c)}7` }), A_SOLICITAR);
-  for (let r = 1; r <= 8; r++) hoja.getRow(r).height = 28;
+  // Si en la oficina hay más de lo necesario, no se solicita nada (0, no un número negativo).
+  fila(8, "A SOLICITAR", (c) => ({ formula: `MAX(0,${letra(c)}6-${letra(c)}7)` }), A_SOLICITAR);
+  for (let r = 1; r <= 8; r++) hoja.getRow(r).height = r === 4 ? 44 : 28;
   hoja.getCell("A1").font = { name: FUENTE_TITULO, size: 18, color: { argb: VERDE } };
   ponerSello(libro, hoja, 22.2, 0.1, 70);
 
@@ -450,7 +451,92 @@ function hojaDegustacion(libro: ExcelJS.Workbook, deg: DegustacionExcel[], ofici
       hoja.getCell(12 + i, 1).value = `${d.tipo === "obsequio" ? "Obsequio" : "Degustación"}: ${cantidadTexto(d.asignado, d.presentacion, d.marca)}`;
     });
   }
+  consolidadoPedido(hoja, deg, oficina, sinColumna.length ? 14 + sinColumna.length : 12);
 }
+
+const NOMBRE_MARCA: Record<string, string> = {
+  AA: "Amarillo de Manzanares",
+  RVC: "Ron Viejo de Caldas Tradicional",
+  ESE: "Ron Viejo de Caldas Esencial",
+  CARTA_ORO: "Ron Viejo de Caldas Carta de Oro",
+  JUAN_CRUZ: "Ron Viejo de Caldas Juan de la Cruz",
+  CHEERS: "Cheers, crema de ron",
+};
+const NOMBRE_PRESENTACION: Record<string, string> = { Media: "Media 375 ml", Botella: "Botella 750 ml", Litro: "Litro" };
+
+/**
+ * Consolidado por marca y referencia, debajo del cuadro: lo que se necesita, lo que hay en la oficina
+ * (Programación → Degustación → En oficina), lo que hay que solicitar y lo que sobra. Las cuentas son fórmulas.
+ */
+function consolidadoPedido(hoja: ExcelJS.Worksheet, deg: DegustacionExcel[], oficina: Map<string, number>, inicio: number) {
+  const grupos = new Map<string, { marca: string; presentacion: string; usos: Set<string>; turnos: Set<string>; cantidad: number }>();
+  for (const d of deg) {
+    const k = `${d.marca}|${d.presentacion}`;
+    const g = grupos.get(k) ?? { marca: d.marca, presentacion: d.presentacion, usos: new Set(), turnos: new Set(), cantidad: 0 };
+    g.usos.add(d.tipo === "obsequio" ? "Obsequio" : "Degustación");
+    g.turnos.add(d.turno_id);
+    g.cantidad += d.asignado;
+    grupos.set(k, g);
+  }
+  const filas = [...grupos.values()].sort(
+    (a, b) => (NOMBRE_MARCA[a.marca] ?? a.marca).localeCompare(NOMBRE_MARCA[b.marca] ?? b.marca) || a.presentacion.localeCompare(b.presentacion),
+  );
+  if (!filas.length) return;
+
+  const titulo = hoja.getCell(inicio, 1);
+  titulo.value = "CONSOLIDADO Y PEDIDO";
+  titulo.font = { name: FUENTE_TITULO, size: 16, color: { argb: VERDE } };
+  hoja.getCell(inicio + 1, 1).value = "Cambia los números de DEGUSTACIÓN OFICINA y el archivo recalcula solo lo que hay que solicitar.";
+  hoja.getCell(inicio + 1, 1).font = { name: "Calibri", size: 10, italic: true, color: { argb: LICO.suave } };
+
+  const enc = inicio + 3;
+  const columnas = ["MARCA", "REFERENCIA", "USO", "TURNOS", "CANTIDAD NECESARIA", "DEGUSTACIÓN OFICINA", "CANTIDAD A SOLICITAR", "SOBRA EN OFICINA"];
+  // La marca ocupa A:B para que quepa el nombre completo; el resto va de C en adelante.
+  hoja.mergeCells(enc, 1, enc, 2);
+  columnas.forEach((t, i) => {
+    const c = hoja.getCell(enc, i === 0 ? 1 : i + 2);
+    c.value = t;
+    estilo(c, { fondo: i === 6 ? LICO.marca : VERDE, color: i === 6 ? BLANCO : CREMA, tam: 11 });
+  });
+  hoja.getRow(enc).height = 32;
+
+  filas.forEach((g, j) => {
+    const r = enc + 1 + j;
+    const en = oficina.get(`${g.marca}|${g.presentacion}`) ?? 0;
+    hoja.mergeCells(r, 1, r, 2);
+    const valores: ExcelJS.CellValue[] = [
+      NOMBRE_MARCA[g.marca] ?? g.marca,
+      NOMBRE_PRESENTACION[g.presentacion] ?? g.presentacion,
+      [...g.usos].join(" y "),
+      g.turnos.size,
+      g.cantidad,
+      en,
+      { formula: `MAX(0,F${r}-G${r})` }, // necesaria (F) menos oficina (G)
+      { formula: `MAX(0,G${r}-F${r})` },
+    ];
+    valores.forEach((v, i) => {
+      const c = hoja.getCell(r, i === 0 ? 1 : i + 2);
+      c.value = v;
+      const pedido = i === 6;
+      estilo(c, { tam: 12, negrita: pedido || i === 0, h: i <= 2 ? "left" : "center", fondo: pedido ? LICO.marcaClaro : j % 2 ? LICO.gris : BLANCO, color: pedido ? LICO.marcaFuerte : NEGRO });
+    });
+    hoja.getRow(r).height = 22;
+  });
+
+  const fin = enc + filas.length;
+  const total = fin + 1;
+  hoja.mergeCells(total, 1, total, 2);
+  for (let c = 1; c <= 9; c++) {
+    if (c === 2) continue;
+    const celda = hoja.getCell(total, c);
+    if (c === 1) celda.value = "TOTAL";
+    else if (c >= 5) celda.value = { formula: `SUM(${letraColumna(c)}${enc + 1}:${letraColumna(c)}${fin})` };
+    estilo(celda, { fondo: LICO.marca, color: BLANCO, tam: 13 });
+  }
+  hoja.getRow(total).height = 26;
+}
+
+const letraColumna = (c: number) => String.fromCharCode(64 + c);
 
 function hojaSolicitudes(libro: ExcelJS.Workbook, solicitudes: SolicitudExcel[]) {
   const hoja = libro.addWorksheet("SOLICITUDES", { views: [{ state: "frozen", ySplit: 1 }] });
