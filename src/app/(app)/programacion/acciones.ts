@@ -569,11 +569,13 @@ async function exigirDegustacion(datos: FormData) {
  * (Esencial → ESE, Amarillo → AA, Ron Viejo de Caldas → RVC). Sin degustación, el de la marca del turno.
  */
 async function uniformeSegunDegustacion(turnoId: string) {
-  await sql`UPDATE turnos t SET uniforme = COALESCE(
-      (SELECT m.uniforme FROM degustacion d JOIN marcas m ON m.codigo = d.marca
-        WHERE d.turno_id = t.id AND d.tipo = 'degustacion' ORDER BY d.asignado DESC, d.id LIMIT 1),
-      (SELECT m.uniforme FROM marcas m WHERE m.codigo = t.marca), t.uniforme)
+  // La marca del turno pasa a la de su degustación principal (sin degustación, la que pidió la solicitud),
+  // y el uniforme al de esa marca.
+  await sql`UPDATE turnos t SET marca = COALESCE(
+      (SELECT d.marca FROM degustacion d WHERE d.turno_id = t.id AND d.tipo = 'degustacion' ORDER BY d.asignado DESC, d.id LIMIT 1),
+      (SELECT s.marca FROM solicitudes s WHERE s.id = t.solicitud_id), t.marca)
     WHERE t.id = ${turnoId}`;
+  await sql`UPDATE turnos t SET uniforme = m.uniforme FROM marcas m WHERE m.codigo = t.marca AND t.id = ${turnoId}`;
 }
 
 export async function asignarDegustacion(datos: FormData) {

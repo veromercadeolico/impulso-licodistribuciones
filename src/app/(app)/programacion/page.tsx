@@ -69,11 +69,12 @@ export default async function ProgramacionPage({ searchParams }: { searchParams:
     sql`SELECT s.id, s.fecha::text, s.hora::text, s.notas, s.obsequios, s.grupo, s.canal AS canal_codigo, p.direccion, s.prioridad, s.extemporanea, s.estado, s.motivo_rechazo, s.servicio, s.degustacion_pedida,
         s.creado_en::text AS creado_orden, (s.creado_en AT TIME ZONE 'America/Bogota')::text AS creado,
         c.nombre AS canal, m.nombre AS marca, m.uniforme, p.nombre AS lugar, p.municipio, v.nombre AS vendedor,
-        t.id AS turno_id, t.impulsadora_id, t.inicio::text, t.fin::text, t.alertas, t.motivo_excepcion, t.publicado, s.marca AS marca_codigo
+        t.id AS turno_id, t.impulsadora_id, t.inicio::text, t.fin::text, t.alertas, t.motivo_excepcion, t.publicado, s.marca AS marca_codigo,
+        t.uniforme AS uniforme_turno, mt.nombre AS marca_turno
       FROM solicitudes s
       JOIN canales c ON c.codigo = s.canal JOIN marcas m ON m.codigo = s.marca
       JOIN puntos p ON p.id = s.punto_id JOIN usuarios v ON v.id = s.vendedor_id
-      LEFT JOIN turnos t ON t.solicitud_id = s.id AND NOT t.cancelado
+      LEFT JOIN turnos t ON t.solicitud_id = s.id AND NOT t.cancelado LEFT JOIN marcas mt ON mt.codigo = t.marca
       WHERE s.periodo_id = ${actual.id}`,
     sql`SELECT id, nombre, municipio, cedula IS NOT NULL AS con_cedula FROM usuarios
       WHERE rol = 'impulsadora' AND activo ORDER BY nombre`,
@@ -391,11 +392,12 @@ export default async function ProgramacionPage({ searchParams }: { searchParams:
                     #{i + 1} · {s.canal} · {s.vendedor}</p>
                   <h3 className="font-semibold">{s.lugar}</h3>
                   <p className="text-sm text-suave">
-                    {s.municipio} · {fechaCorta(s.fecha)}, {hora(s.hora)} · {s.marca}
+                    {s.municipio} · {fechaCorta(s.fecha)}, {hora(s.hora)} · {s.marca_turno ?? s.marca}
+                    {s.marca_turno && s.marca_turno !== s.marca && <span className="text-xs"> (pedido: {s.marca})</span>}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <Uniforme codigo={s.uniforme} />
+                  <Uniforme codigo={s.uniforme_turno ?? s.uniforme} />
                   {s.servicio === "bartender" && <Insignia tono="marca">Bartender</Insignia>}
                   {s.grupo && <Insignia>Varias marcas</Insignia>}
                   {s.prioridad ? <Insignia tono="marca">Relevancia {PRIORIDADES[s.prioridad]}</Insignia> : <Insignia>Por llegada</Insignia>}
