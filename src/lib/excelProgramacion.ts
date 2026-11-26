@@ -471,8 +471,8 @@ function hojaSolicitudes(libro: ExcelJS.Workbook, solicitudes: SolicitudExcel[])
  * Hoja para revisar un día: cada impulsadora con sus turnos en orden y el descanso entre ellos.
  * Marca en rojo cuando hay menos de 1 h 30 entre un turno y el siguiente, y lista lo que quedó sin impulsadora.
  */
-function hojaRevision(libro: ExcelJS.Workbook, turnos: TurnoExcel[], solicitudes: SolicitudExcel[]) {
-  const hoja = libro.addWorksheet("REVISION", { views: [{ state: "frozen", ySplit: 1 }] });
+function hojaRevision(libro: ExcelJS.Workbook, turnos: TurnoExcel[], solicitudes: SolicitudExcel[], nombre = "REVISION") {
+  const hoja = libro.addWorksheet(nombre, { views: [{ state: "frozen", ySplit: 1 }] });
   const columnas = ["IMPULSADORA", "HORARIO", "LUGAR", "CIUDAD", "MARCA", "DESCANSO ANTES", "REVISION"];
   const anchos = [34, 22, 42, 16, 28, 18, 30];
   anchos.forEach((w, i) => (hoja.getColumn(i + 1).width = w));
@@ -545,13 +545,20 @@ export async function crearExcelProgramacion(d: {
   disponibilidad: DisponibilidadExcel[];
   oficina: Map<string, number>;
   /** Excel de revisión de un solo día: sin la hoja de ejecución semanal y con la hoja REVISION. */
-  soloDia?: string | null;
+  soloDias?: string[] | null;
 }) {
   const libro = new ExcelJS.Workbook();
   libro.creator = "Impulso Lico Distribuciones";
   const disponibles = new Set(d.disponibilidad.map((x) => `${x.nombre}|${x.fecha}|${x.franja}`));
 
-  if (d.soloDia) hojaRevision(libro, d.turnos, d.solicitudes);
+  if (d.soloDias?.length === 1) hojaRevision(libro, d.turnos, d.solicitudes);
+  else if (d.soloDias?.length) {
+    // Varios días elegidos: una hoja de revisión por día.
+    for (const dia of d.soloDias) {
+      const p = partes(dia);
+      hojaRevision(libro, d.turnos.filter((t) => t.dia === dia), d.solicitudes.filter((s) => s.fecha === dia), `REVISION ${p.dia} ${String(p.num).padStart(2, "0")}`);
+    }
+  }
   else hojaEjecucion(libro, d.canales);
   const dias = [...new Set(d.turnos.map((t) => t.dia))].sort();
   for (const dia of dias) {

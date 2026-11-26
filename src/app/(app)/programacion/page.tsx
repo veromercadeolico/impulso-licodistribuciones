@@ -250,6 +250,23 @@ export default async function ProgramacionPage({ searchParams }: { searchParams:
                   </a>
                 ))}
               </div>
+              <form action="/api/programacion/excel" method="get" className="mt-3 border-t border-linea pt-3">
+                <input type="hidden" name="p" value={actual.id} />
+                <p className="text-sm font-semibold">Varios días en un solo Excel</p>
+                <p className="text-xs text-suave">Marca los días (por ejemplo viernes a domingo) y descárgalos juntos.</p>
+                <div className="mt-2 grid grid-cols-2 gap-1.5">
+                  {Array.from({ length: 7 }, (_, i) => sumarDias(actual.fecha_inicio, i)).map((d) => {
+                    const diaSemana = new Date(`${d}T12:00:00Z`).getUTCDay();
+                    return (
+                      <label key={d} className="flex items-center gap-2 text-sm">
+                        <input type="checkbox" name="dia" value={d} defaultChecked={diaSemana === 5 || diaSemana === 6 || diaSemana === 0} className="size-4 accent-marca" />
+                        {fechaCorta(d)}
+                      </label>
+                    );
+                  })}
+                </div>
+                <button className="boton-sec mt-2 w-full text-sm">Descargar días elegidos</button>
+              </form>
             </details>
             {esTrade && !soloLectura && (
               <>
