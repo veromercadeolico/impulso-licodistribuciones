@@ -17,6 +17,7 @@ import {
   aprobarSolicitud,
   aprobarTurnoRevision,
   asignarDegustacion,
+  cambiarUniforme,
   avanzarFlujo,
   proponerProgramacion,
   publicarProgramacion,
@@ -369,6 +370,20 @@ export default async function ProgramacionPage({ searchParams }: { searchParams:
                 </select>
                 <input name="cantidad" type="number" min={1} required aria-label="Cantidad" placeholder="Cant." className="campo" />
                 <button className="boton-sec">Asignar</button>
+              </form>
+              <form action={cambiarUniforme} className="mt-3 flex flex-wrap items-center gap-2 border-t border-linea pt-3">
+                <input type="hidden" name="periodo" value={actual.id} />
+                <input type="hidden" name="turno" value={s.turno_id} />
+                <input type="hidden" name="desde" value="programacion" />
+                <input type="hidden" name="solicitud" value={s.id} />
+                <label htmlFor={`uni-${s.id}`} className="text-sm font-semibold">Uniforme</label>
+                <select id={`uni-${s.id}`} name="uniforme" defaultValue={s.uniforme_turno ?? s.uniforme} className="campo w-auto">
+                  <option value="AA">Amarillo (AA)</option>
+                  <option value="ESE">Esencial (ESE)</option>
+                  <option value="RVC">Ron Viejo de Caldas (RVC)</option>
+                </select>
+                <button className="boton-sec">Cambiar uniforme</button>
+                <span className="w-full text-xs text-suave">Se ajusta solo con la degustación; aquí lo puedes elegir a mano (por ejemplo, si hay dos marcas con la misma cantidad).</span>
               </form>
             </div>
           );

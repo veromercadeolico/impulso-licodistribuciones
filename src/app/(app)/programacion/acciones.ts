@@ -569,13 +569,31 @@ async function exigirDegustacion(datos: FormData) {
  * (Esencial → ESE, Amarillo → AA, Ron Viejo de Caldas → RVC). Sin degustación, el de la marca del turno.
  */
 async function uniformeSegunDegustacion(turnoId: string) {
-  // La marca del turno pasa a la de su degustación principal (sin degustación, la que pidió la solicitud),
-  // y el uniforme al de esa marca.
-  await sql`UPDATE turnos t SET marca = COALESCE(
-      (SELECT d.marca FROM degustacion d WHERE d.turno_id = t.id AND d.tipo = 'degustacion' ORDER BY d.asignado DESC, d.id LIMIT 1),
-      (SELECT s.marca FROM solicitudes s WHERE s.id = t.solicitud_id), t.marca)
-    WHERE t.id = ${turnoId}`;
-  await sql`UPDATE turnos t SET uniforme = m.uniforme FROM marcas m WHERE m.codigo = t.marca AND t.id = ${turnoId}`;
+  // La marca del turno pasa a la de su degustación principal y el uniforme al de esa marca.
+  // Si hay empate de cantidades, se respeta el uniforme que ya tiene el turno (por ejemplo, el que eligió Trade).
+  const [principal] = await sql`SELECT d.marca, m.uniforme FROM degustacion d JOIN marcas m ON m.codigo = d.marca
+    WHERE d.turno_id = ${turnoId} AND d.tipo = 'degustacion'
+    ORDER BY d.asignado DESC, (m.uniforme = (SELECT uniforme FROM turnos WHERE id = ${turnoId})) DESC, d.id LIMIT 1`;
+  if (principal) {
+    await sql`UPDATE turnos SET marca = ${principal.marca}, uniforme = ${principal.uniforme} WHERE id = ${turnoId}`;
+  } else {
+    // Sin degustación: la marca que pidió la solicitud.
+    await sql`UPDATE turnos t SET marca = s.marca, uniforme = m.uniforme FROM solicitudes s JOIN marcas m ON m.codigo = s.marca
+      WHERE s.id = t.solicitud_id AND t.id = ${turnoId}`;
+  }
+}
+
+/** Trade (o Supervisión en su revisión) elige a mano el uniforme del turno. */
+export async function cambiarUniforme(datos: FormData) {
+  const responder = await exigirDegustacion(datos);
+  const periodoId = String(datos.get("periodo"));
+  const turnoId = String(datos.get("turno"));
+  const uniforme = String(datos.get("uniforme"));
+  if (!["AA", "ESE", "RVC"].includes(uniforme)) responder("error", "Elige un uniforme válido.");
+  const [t] = await sql`UPDATE turnos SET uniforme = ${uniforme} WHERE id = ${turnoId} AND periodo_id = ${periodoId} RETURNING id`;
+  if (!t) responder("error", "El turno no pertenece a esta semana.");
+  revalidatePath("/programacion");
+  responder("ok", "Uniforme actualizado.");
 }
 
 export async function asignarDegustacion(datos: FormData) {
