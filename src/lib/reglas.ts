@@ -180,6 +180,22 @@ export function puedeCubrir(imp: { id: string; municipio: string | null }, munic
 }
 
 /**
+ * Impulsadoras que ciertos días solo trabajan en algunos canales: en la tarde y en la noche por separado.
+ * Día de la semana: 0 domingo … 5 viernes, 6 sábado.
+ */
+export const CANALES_POR_DIA: Record<string, { dia: number; tarde: string[]; noche: string[] }[]> = {
+  // Sara Camila Tobar: los viernes solo Mayoristas en la tarde (2 a 6 PM) y Consumo en la noche (9 PM).
+  "4f4b2401-463a-4d09-8aaa-5bc09380586f": [{ dia: 5, tarde: ["MAYORISTAS"], noche: ["CONSUMO"] }],
+};
+export function puedeCanal(impId: string, canal: string | undefined, inicio: string): boolean {
+  const reglas = CANALES_POR_DIA[impId];
+  if (!reglas || !canal) return true;
+  const dia = new Date(`${inicio.slice(0, 10)}T12:00:00Z`).getUTCDay();
+  const r = reglas.find((x) => x.dia === dia);
+  return !r || (franjaDe(inicio) === "tarde" ? r.tarde : r.noche).includes(canal);
+}
+
+/**
  * Degustación que la propuesta pone a cada turno según el canal, siempre de la marca del turno.
  * Sale de lo más común en las programaciones anteriores; Trade la puede cambiar a mano por turno.
  */
@@ -286,7 +302,7 @@ export function generarPropuesta(
     // Lugar con impulsadora fija: solo ella, aunque no haya marcado disponibilidad o sea de otro municipio.
     const fija = impulsadoraFija(solicitud.lugar);
     const candidatas = impulsadoras
-      .filter((imp) => fija ? imp.id === fija : disponibles.has(claveDisponibilidad(imp.id, solicitud.inicio)) && puedeCubrir(imp, solicitud.municipio, solicitud.inicio))
+      .filter((imp) => fija ? imp.id === fija : disponibles.has(claveDisponibilidad(imp.id, solicitud.inicio)) && puedeCubrir(imp, solicitud.municipio, solicitud.inicio) && puedeCanal(imp.id, solicitud.canal, solicitud.inicio))
       .map((imp) => {
         const propios = ocupados.filter((t) => t.impulsadoraId === imp.id);
         const turno = { ...solicitud, id: undefined, impulsadoraId: imp.id };

@@ -302,3 +302,13 @@ test("Club Campestre siempre con Ana Sofía, aunque sea de noche y de otro munic
   );
   assert.equal(r.asignaciones[0].impulsadoraId, ana.id);
 });
+
+test("Sara Camila los viernes solo hace Mayoristas en la tarde y Consumo en la noche", async () => {
+  const { puedeCanal } = await import("./reglas.ts");
+  const sara = "4f4b2401-463a-4d09-8aaa-5bc09380586f";
+  assert.equal(puedeCanal(sara, "MAYORISTAS", "2026-11-27 14:00"), true);
+  assert.equal(puedeCanal(sara, "SUPERMERCADOS", "2026-11-27 15:00"), false);
+  assert.equal(puedeCanal(sara, "CONSUMO", "2026-11-27 21:00"), true);
+  assert.equal(puedeCanal(sara, "TAT", "2026-11-27 20:00"), false);
+  assert.equal(puedeCanal(sara, "SUPERMERCADOS", "2026-11-28 15:00"), true);
+});
