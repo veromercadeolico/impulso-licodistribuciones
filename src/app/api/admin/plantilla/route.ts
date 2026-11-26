@@ -1,6 +1,7 @@
 import ExcelJS from "exceljs";
 import { usuarioActual } from "@/lib/auth";
 import { sql } from "@/lib/db";
+import { LICO, ponerSello } from "@/lib/marcaExcel";
 
 export async function GET() {
   const usuario = await usuarioActual();
@@ -21,8 +22,16 @@ export async function GET() {
     { header: "canal", key: "canal", width: 16 },
     { header: "municipio", key: "municipio", width: 16 },
   ];
-  hoja.getRow(1).font = { bold: true };
   usuarios.forEach((u) => hoja.addRow(u));
+  // La fila 1 debe seguir siendo la de los nombres de columna: la importación la salta. Solo cambia el estilo.
+  hoja.getRow(1).height = 24;
+  hoja.getRow(1).eachCell((c) => {
+    c.font = { bold: true, color: { argb: LICO.fondo } };
+    c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: LICO.tinta } };
+    c.alignment = { vertical: "middle" };
+  });
+  hoja.views = [{ state: "frozen", ySplit: 1 }];
+  ponerSello(libro, hoja, 6.3, 0.1, 64);
 
   const ayuda = libro.addWorksheet("Valores permitidos");
   ayuda.addRow([`Roles: ${roles.join(", ")}`]);
@@ -30,6 +39,8 @@ export async function GET() {
   ayuda.addRow(["Canales (código):"]);
   canales.forEach((c) => ayuda.addRow([c.codigo, c.nombre]));
   ayuda.getColumn(1).width = 28;
+  ayuda.getRow(3).font = { bold: true, color: { argb: LICO.marca } };
+  ponerSello(libro, ayuda, 3.3, 0.1, 64);
 
   const contenido = await libro.xlsx.writeBuffer();
   return new Response(contenido as ArrayBuffer, {

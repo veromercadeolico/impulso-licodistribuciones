@@ -1,20 +1,23 @@
 import ExcelJS from "exceljs";
 import { hora } from "./formato";
+import { FUENTE_TITULO, LICO, ponerSello } from "./marcaExcel";
 import { aMinutos, DESCANSO_MINIMO_MIN } from "./reglas";
 
-// Reproduce la plantilla "PROGRAMACION NOVIEMBRE 2026-SEM 3.xlsx" de Trade Marketing.
-const VERDE = "FF385623";
-const CREMA = "FFFFE598";
-const VERDE_OSCURO = "FF375623";
-const ORO_CLARO = "FFFFE699";
-const FIESTA = "FFFFF2CC";
-const AZUL_CLARO = "FFB4C6E7";
-const AZUL_RESUMEN = "FF9DC3E6";
-const AZUL_DESTINO = "FFDAE3F3";
-const VERDE_CLARO = "FFC5E0B4";
-const VERDE_NEGATIVO = "FFA9D18E";
-const DISPONIBLE = "FF92D050";
-const NO_DISPONIBLE = "FFF4B183";
+// Reproduce la estructura de la plantilla "PROGRAMACION NOVIEMBRE 2026-SEM 3.xlsx" de Trade Marketing,
+// con los colores y el sello del manual de marca de Lico Distribuciones.
+const VERDE = LICO.tinta; // encabezados
+const CREMA = LICO.fondo; // texto de los encabezados y franja del título
+const VERDE_OSCURO = LICO.marca; // columna del día y totales
+const ORO_CLARO = LICO.fondo;
+const FIESTA = LICO.marcaClaro;
+const AZUL_CLARO = LICO.arena;
+const AZUL_RESUMEN = LICO.arena;
+const AZUL_DESTINO = LICO.fondo;
+const VERDE_CLARO = LICO.gris;
+const VERDE_NEGATIVO = LICO.errorClaro;
+const DISPONIBLE = LICO.okClaro;
+const NO_DISPONIBLE = LICO.errorClaro;
+const A_SOLICITAR = LICO.marcaClaro;
 const GRIS = "FFD0CECE";
 const NARANJA = "FFFFC000";
 const ROJO = "FFFF0000";
@@ -153,9 +156,15 @@ function hojaDia(
   hoja.mergeCells("B2:P2");
   hoja.getCell("B2").value = `LICODISTRIBUCIONES S.A.S. : ACTIVIDADES ${p.mes} ${p.anio}`;
   estilo(hoja.getCell("B2"), { fondo: CREMA, color: VERDE });
+  hoja.getCell("B1").font = { name: FUENTE_TITULO, size: 18, color: { argb: CREMA } };
+  hoja.getCell("B2").font = { name: FUENTE_TITULO, size: 18, color: { argb: VERDE } };
+  estilo(hoja.getCell("A1"), { fondo: CREMA });
   hoja.mergeCells("Q1:Q2");
+  estilo(hoja.getCell("Q1"), { fondo: CREMA });
   hoja.getRow(1).height = 31.2;
   hoja.getRow(2).height = 31.2;
+  // Sello de Lico en el recuadro A1:A2, como el logo de la plantilla.
+  ponerSello(libro, hoja, 0.3, 0.04, 78);
 
   const encabezados: [string, string][] = [
     ["A", "DIA"], ["B", "CANAL"], ["C", "CIUDAD"], ["D", "ACTIVIDAD"], ["E", "LUGAR"], ["F", "HORARIO"], ["G", "UNIFORME"],
@@ -263,7 +272,8 @@ function hojaDia(
   }
   const celdaDia = hoja.getCell(primera, 1);
   celdaDia.value = `${p.dia} ${p.num} DE ${p.mes}`;
-  estilo(celdaDia, { fondo: ORO_CLARO, tam: 20 });
+  estilo(celdaDia, { fondo: ORO_CLARO, color: VERDE, tam: 20 });
+  celdaDia.font = { name: FUENTE_TITULO, size: 20, bold: true, color: { argb: VERDE } };
 
   const total = hoja.getRow(ultima + 1);
   for (let c = 8; c <= 15; c++) {
@@ -274,7 +284,7 @@ function hojaDia(
       const otros = filas.map((_, i) => hoja.getCell(primera + i, 15).value).filter(Boolean);
       celda.value = otros.length ? otros.join(" ") : null;
     }
-    estilo(celda, { fondo: VERDE_OSCURO, color: NARANJA, tam: 24 });
+    estilo(celda, { fondo: VERDE_OSCURO, color: BLANCO, tam: 24 });
   }
   total.height = 40;
 
@@ -362,6 +372,7 @@ function hojaEjecucion(libro: ExcelJS.Workbook, canales: CanalExcel[]) {
   ["B", "C", "D"].forEach((l, i) =>
     celda(totalFila, i + 2, { formula: `SUM(${l}${ini + 2}:${l}${totalFila - 1})` }, { fondo: AZUL_RESUMEN, negrita: true, formato: l === "D" ? "0%" : undefined }),
   );
+  ponerSello(libro, hoja, 5.2, 0.1, 70);
 }
 
 function hojaDegustacion(libro: ExcelJS.Workbook, deg: DegustacionExcel[], oficina: Map<string, number>) {
@@ -426,8 +437,10 @@ function hojaDegustacion(libro: ExcelJS.Workbook, deg: DegustacionExcel[], ofici
   fila(5, "OBSEQUIOS", sumar("obsequio"));
   fila(6, "TOTAL", (c) => ({ formula: `SUM(${letra(c)}4:${letra(c)}5)` }), AZUL_DESTINO);
   fila(7, "OFICINA", enOficina, VERDE_CLARO);
-  fila(8, "A SOLICITAR", (c) => ({ formula: `+${letra(c)}6-${letra(c)}7` }), AMARILLO);
+  fila(8, "A SOLICITAR", (c) => ({ formula: `+${letra(c)}6-${letra(c)}7` }), A_SOLICITAR);
   for (let r = 1; r <= 8; r++) hoja.getRow(r).height = 28;
+  hoja.getCell("A1").font = { name: FUENTE_TITULO, size: 18, color: { argb: VERDE } };
+  ponerSello(libro, hoja, 22.2, 0.1, 70);
 
   const sinColumna = deg.filter((d) => !columnaDegustacion(d.marca, d.presentacion));
   if (sinColumna.length) {
@@ -465,6 +478,7 @@ function hojaSolicitudes(libro: ExcelJS.Workbook, solicitudes: SolicitudExcel[])
   });
   hoja.getRow(1).height = 30;
   hoja.autoFilter = { from: { row: 1, column: 1 }, to: { row: Math.max(solicitudes.length + 1, 1), column: columnas.length } };
+  ponerSello(libro, hoja, columnas.length + 0.3, 0.1, 70);
 }
 
 /**
@@ -534,6 +548,7 @@ function hojaRevision(libro: ExcelJS.Workbook, turnos: TurnoExcel[], solicitudes
     });
     fila++;
   }
+  ponerSello(libro, hoja, columnas.length + 0.3, 0.1, 70);
 }
 
 export async function crearExcelProgramacion(d: {
@@ -548,7 +563,7 @@ export async function crearExcelProgramacion(d: {
   soloDias?: string[] | null;
 }) {
   const libro = new ExcelJS.Workbook();
-  libro.creator = "Impulso Lico Distribuciones";
+  libro.creator = "Lico Distribuciones · Trade Marketing";
   const disponibles = new Set(d.disponibilidad.map((x) => `${x.nombre}|${x.fecha}|${x.franja}`));
 
   if (d.soloDias?.length === 1) hojaRevision(libro, d.turnos, d.solicitudes);
