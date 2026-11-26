@@ -281,6 +281,7 @@ export async function aprobarSolicitud(datos: FormData) {
     RETURNING id`;
   await sql`UPDATE solicitudes SET estado = 'aprobada', motivo_rechazo = NULL, punto_id = ${puntoId} WHERE id = ${id}`;
   await recalcularAlertas(periodoId);
+  await pedirAprobacionDeCambio(periodoId, turno.id, autor.rol, `${lugar}, ${fechaCorta(inicio)} de ${horaTexto(inicio)} a ${horaTexto(fin)}.`);
 
   const descripcion = `${lugar}, ${fechaCorta(inicio)} de ${horaTexto(inicio)} a ${horaTexto(fin)}`;
   // El cambio queda registrado con su motivo para que el vendedor lo vea en su solicitud.
@@ -312,6 +313,33 @@ export async function aprobarSolicitud(datos: FormData) {
   volver(periodoId, "ok", "Solicitud aprobada.", ancla);
 }
 
+/**
+ * Si la semana ya está publicada y Trade cambia un turno, ese turno vuelve a quedar pendiente de aprobación
+ * de Supervisión (se borra su aprobación anterior). Con avisar, le llega un aviso (y correo) a Supervisión.
+ */
+async function pedirAprobacionDeCambio(periodoId: string, turnoId: string, rol: string, detalle?: string) {
+  if (rol === "supervisor") return;
+  const { publicada } = await estadoSemana(periodoId);
+  if (!publicada) return;
+  await sql`DELETE FROM cambios_turno WHERE turno_id = ${turnoId} AND detalle = ${DETALLE_APROBADO_TURNO}`;
+  if (!detalle) return;
+  const sup = await sql`SELECT id FROM usuarios WHERE rol = 'supervisor' AND activo`;
+  await notificar(sup.map((u) => u.id), {
+    titulo: "Cambio en la programación para aprobar",
+    cuerpo: `Trade Marketing cambió un turno ya publicado: ${detalle} Revísalo y apruébalo en Programación.`,
+    enlace: `/programacion?p=${periodoId}`,
+    correo: true,
+  });
+}
+
+/** Supervisión aprueba turnos durante su revisión o, si la semana ya está publicada, los cambios posteriores. */
+async function exigirAprobacionSupervision(periodoId: string) {
+  const usuario = await exigirRol("supervisor", "admin");
+  const { estado, publicada } = await estadoSemana(periodoId);
+  if (!publicada && estado !== "en_revision") volver(periodoId, "error", "Solo puedes aprobar turnos cuando la programación está en tu revisión o ya publicada.");
+  return usuario;
+}
+
 async function registrarAprobacionTurno(turnoId: string, autorId: string) {
   await sql`INSERT INTO cambios_turno (turno_id, autor_id, motivo, detalle)
     VALUES (${turnoId}, ${autorId}, 'Revisión de Supervisión', ${DETALLE_APROBADO_TURNO})`;
@@ -321,8 +349,7 @@ async function registrarAprobacionTurno(turnoId: string, autorId: string) {
 export async function aprobarTurnoRevision(datos: FormData) {
   const periodoId = String(datos.get("periodo"));
   const solicitudId = String(datos.get("id"));
-  const autor = await exigirEdicion(periodoId);
-  if (autor.rol !== "supervisor" && autor.rol !== "admin") volver(periodoId, "error", "Solo Supervisión aprueba turnos en la revisión.");
+  const autor = await exigirAprobacionSupervision(periodoId);
   const [t] = await sql`SELECT id FROM turnos WHERE solicitud_id = ${solicitudId} AND periodo_id = ${periodoId} AND NOT cancelado`;
   if (!t) volver(periodoId, "error", "Esta solicitud no tiene turno asignado. Usa Modificar para asignarlo.", `#s-${solicitudId}`);
   await registrarAprobacionTurno(t.id, autor.id);
@@ -336,8 +363,7 @@ export async function aprobarTurnoRevision(datos: FormData) {
  */
 export async function aprobarTurnosVarios(datos: FormData) {
   const periodoId = String(datos.get("periodo"));
-  const autor = await exigirEdicion(periodoId);
-  if (autor.rol !== "supervisor" && autor.rol !== "admin") volver(periodoId, "error", "Solo Supervisión aprueba turnos en la revisión.");
+  const autor = await exigirAprobacionSupervision(periodoId);
   const modo = String(datos.get("modo") ?? "");
   const ids = [...new Set(datos.getAll("ids").map(String))].filter((x) => /^[0-9a-f-]{36}$/.test(x));
   const turnos = modo === "sin_alertas"
