@@ -463,6 +463,22 @@ export default async function ProgramacionPage({ searchParams }: { searchParams:
                 <p key={n} className="mt-2 rounded-lg bg-gris px-3 py-1.5 text-sm"><span className="font-semibold">Comentario:</span> {c.cuerpo} <span className="text-xs text-suave">({fechaCorta(c.fecha)}, {hora(c.fecha)})</span></p>
               ))}
 
+              {s.turno_id && (
+                <div className="mt-3 rounded-lg border border-linea bg-white px-3 py-2 text-sm">
+                  <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="font-semibold">Turno:</span>
+                    <span>{impulsadoras.find((o) => o.id === s.impulsadora_id)?.nombre ?? "Sin impulsadora"}</span>
+                    <span className="text-suave">· {hora(inicio)} a {hora(fin)}</span>
+                    <span className="text-suave">· Uniforme</span> <Uniforme codigo={s.uniforme_turno ?? s.uniforme} />
+                  </p>
+                  <p className="mt-1">
+                    <span className="font-semibold">Degustación:</span>{" "}
+                    {items.length
+                      ? items.map((d) => `${d.asignado} ${String(d.presentacion).toLowerCase()} ${d.marca}${d.tipo === "obsequio" ? " (obsequio)" : ""}`).join(" · ")
+                      : <span className="text-suave">sin degustación asignada</span>}
+                  </p>
+                </div>
+              )}
               {alertas.length > 0 && (
                 <ul className="mt-3 space-y-1">
                   {alertas.map((a, n) => (
