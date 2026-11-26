@@ -270,3 +270,11 @@ test("las solicitudes creadas por Trade van primero en la propuesta", () => {
   assert.deepEqual(r.asignaciones.map((x) => x.solicitudId), ["trade"]);
   assert.deepEqual(r.sinCobertura, ["vendedor"]);
 });
+
+test("Supermercados de 4 a 8 PM pasa a 3:30 PM; las demás horas no cambian", async () => {
+  const { horaSegunCanal } = await import("./reglas.ts");
+  assert.equal(horaSegunCanal("SUPERMERCADOS", "15:00"), "15:00");
+  assert.equal(horaSegunCanal("SUPERMERCADOS", "16:00"), "15:30");
+  assert.equal(horaSegunCanal("SUPERMERCADOS", "10:00"), "10:00");
+  assert.equal(horaSegunCanal("CONSUMO", "20:00"), "21:00");
+});

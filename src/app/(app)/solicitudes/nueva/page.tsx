@@ -47,7 +47,7 @@ export default async function NuevaSolicitudPage({ searchParams }: { searchParam
             <div>
               <label htmlFor="hora" className="etiqueta">Hora de inicio</label>
               <input id="hora" name="hora" type="time" className="campo" required />
-              <p className="mt-1 text-xs text-suave">Consumo en la noche: el turno siempre es de 9:00 PM a 12:30 AM.</p>
+              <p className="mt-1 text-xs text-suave">Consumo en la noche: siempre de 9:00 PM a 12:30 AM. Supermercados de 4:00 a 8:00 PM pasa a 3:30 a 7:30 PM.</p>
             </div>
           </div>
           <div>

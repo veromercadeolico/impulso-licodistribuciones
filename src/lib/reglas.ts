@@ -183,12 +183,22 @@ export const DEGUSTACION_POR_CANAL: Record<string, { presentacion: string; canti
 
 /** Consumo en la noche (desde las 6 PM) siempre empieza a las 9:00 PM y va hasta las 12:30 AM. */
 export const HORA_CONSUMO_NOCHE = "21:00";
+/**
+ * Supermercados pedidos de 4:00 a 8:00 PM pasan a 3:30 a 7:30 PM, para que la misma impulsadora alcance el
+ * turno de la noche de las 9:00 PM con 1 h 30 de descanso. Las demás horas de Supermercados no cambian.
+ */
+export const HORA_SUPERMERCADOS_TARDE = "15:30";
 export function horaSegunCanal(canal: string, hora: string): string {
-  return canal === "CONSUMO" && /^\d{2}:\d{2}$/.test(hora) && hora >= "18:00" ? HORA_CONSUMO_NOCHE : hora;
+  if (!/^\d{2}:\d{2}$/.test(hora)) return hora;
+  if (canal === "CONSUMO" && hora >= "18:00") return HORA_CONSUMO_NOCHE;
+  if (canal === "SUPERMERCADOS" && hora === "16:00") return HORA_SUPERMERCADOS_TARDE;
+  return hora;
 }
 /** Consumo en la tarde (antes de las 6 PM) es poco común: Trade Marketing debe confirmarla antes de aprobar. */
 export const esConsumoTarde = (canal: string, hora: string) => canal === "CONSUMO" && hora.slice(0, 5) < "18:00";
-const esConsumoNoche = (s: { canal?: string; inicio: string }) => s.canal === "CONSUMO" && franjaDe(s.inicio) === "noche";
+/** Turnos con hora fija que no se corren media hora: Consumo en la noche y Supermercados en la tarde. */
+const horaFija = (s: { canal?: string; inicio: string }) => !!s.canal && horaSegunCanal(s.canal, s.inicio.slice(11, 16)) === s.inicio.slice(11, 16) && (
+  (s.canal === "CONSUMO" && franjaDe(s.inicio) === "noche") || (s.canal === "SUPERMERCADOS" && s.inicio.slice(11, 16) === HORA_SUPERMERCADOS_TARDE));
 
 /** Cuánto se puede correr un turno para cubrirlo cuando nadie tiene la hora y media libre. */
 export const CORRIMIENTOS_MIN = [0, 30, -30];
@@ -228,8 +238,8 @@ export function generarPropuesta(
       let quedan = false;
       for (const original of pendientes) {
         if (asignadas.has(original.id)) continue;
-        // Consumo en la noche tiene hora fija (9:00 PM): no se corre.
-        if (corrimiento && esConsumoNoche(original)) continue;
+        // Consumo en la noche (9:00 PM) y Supermercados en la tarde (3:30 PM) tienen hora fija: no se corren.
+        if (corrimiento && horaFija(original)) continue;
         const clave = original.canal ? claveCanalJornada(original.canal, original.inicio) : null;
         if (clave && (porCanalJornada.get(clave) ?? 0) >= limite) {
           quedan = true;
