@@ -56,6 +56,15 @@ export async function crearSolicitud(datos: FormData) {
     ON CONFLICT (lower(nombre), lower(municipio)) DO UPDATE SET direccion = COALESCE(EXCLUDED.direccion, puntos.direccion)
     RETURNING id`;
   const periodo = await asegurarPeriodo(fecha);
+  // Evita solicitudes repetidas (por ejemplo, al tocar el botón varias veces): misma persona, lugar, fecha, hora y marca.
+  const yaEnviadas = await sql`SELECT DISTINCT marca FROM solicitudes WHERE vendedor_id = ${usuario.id} AND punto_id = ${punto.id}
+    AND fecha = ${fecha} AND hora = ${hora} AND marca = ANY(${marcas}) AND estado <> 'rechazada'`;
+  if (yaEnviadas.length === marcas.length) {
+    redirect(`${usuario.rol === "trade" ? "/programacion" : "/solicitudes"}?p=${periodo.id}&ok=${encodeURIComponent("Esta solicitud ya estaba enviada (mismo lugar, fecha, hora y marcas). No se repitió.")}`);
+  }
+  if (yaEnviadas.length) {
+    error(`Ya enviaste una solicitud igual para ${yaEnviadas.map((m) => m.marca).join(", ")} en este lugar, fecha y hora. Quita esa marca o, si necesitas más impulsadoras, escríbele a Trade Marketing.`);
+  }
   // Trade Marketing arma la programación: sus solicitudes nunca son extemporáneas.
   const esTrade = usuario.rol === "trade";
   const extemporanea = !esTrade && `${ahoraBogota()}:00` > periodo.limite_solicitudes.slice(0, 19);

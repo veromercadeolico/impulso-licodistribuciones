@@ -149,6 +149,7 @@ export async function proponerProgramacion(datos: FormData) {
         municipio: s.municipio,
         canal: s.canal,
         deTrade: s.de_trade,
+        lugar: s.lugar,
         inicio,
         fin: sumarMinutos(inicio, duracionTurno(s.canal, inicio)),
       };

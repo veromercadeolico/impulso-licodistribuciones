@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BotonEnviar } from "@/components/BotonEnviar";
 import { Avisos, Encabezado, Tarjeta, Uniforme } from "@/components/ui";
 import { exigirRol } from "@/lib/auth";
 import { sql } from "@/lib/db";
@@ -141,11 +142,11 @@ export default async function NuevaSolicitudPage({ searchParams }: { searchParam
             <Link href={esTrade ? "/programacion" : "/solicitudes"} className="boton-sec">Cancelar</Link>
             {esTrade ? (
               <>
-                <button name="despues" value="otra" className="boton-sec">Enviar y crear otra</button>
-                <button name="despues" value="programacion" className="boton">Enviar y ver programación</button>
+                <BotonEnviar name="despues" value="otra" className="boton-sec">Enviar y crear otra</BotonEnviar>
+                <BotonEnviar name="despues" value="programacion">Enviar y ver programación</BotonEnviar>
               </>
             ) : (
-              <button className="boton">Enviar solicitud</button>
+              <BotonEnviar>Enviar solicitud</BotonEnviar>
             )}
           </div>
         </form>

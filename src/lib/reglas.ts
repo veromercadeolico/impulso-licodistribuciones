@@ -133,6 +133,8 @@ export type SolicitudPropuesta = SolicitudOrden & {
   canal?: string;
   /** Solicitud creada por Trade Marketing: va antes que las de los vendedores. */
   deTrade?: boolean;
+  /** Nombre del lugar, para los lugares que siempre llevan la misma impulsadora. */
+  lugar?: string;
 };
 export type ImpulsadoraPropuesta = { id: string; nombre: string; municipio: string | null };
 /** Horario final del turno: puede quedar corrido media hora respecto a la solicitud (corridoMin = 30 o -30). */
@@ -161,6 +163,15 @@ export const PUEDEN_SALIR: Record<string, { municipio: string; soloDia: boolean 
   "eba122eb-cf51-4e48-a501-d264b2957c78": [{ municipio: "ARMENIA", soloDia: true }], // Ana Sofía Tavera Sánchez (La Tebaida)
 };
 export const MUNICIPIO_BASE = "ARMENIA";
+
+/** Lugares que siempre llevan la misma impulsadora (se busca el texto en el nombre del lugar, sin tildes). */
+export const IMPULSADORA_FIJA_POR_LUGAR: { lugar: string; impulsadoraId: string }[] = [
+  { lugar: "CLUB CAMPESTRE", impulsadoraId: "eba122eb-cf51-4e48-a501-d264b2957c78" }, // Ana Sofía Tavera Sánchez
+];
+export function impulsadoraFija(lugar: string | null | undefined): string | null {
+  const texto = (lugar ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase();
+  return IMPULSADORA_FIJA_POR_LUGAR.find((f) => texto.includes(f.lugar))?.impulsadoraId ?? null;
+}
 
 /** Si la impulsadora puede cubrir un turno en ese municipio y hora ("de día" = turno que empieza antes de las 6 PM). */
 export function puedeCubrir(imp: { id: string; municipio: string | null }, municipio: string, inicio: string): boolean {
@@ -229,7 +240,10 @@ export function generarPropuesta(
   }
 
   // Las solicitudes que crea Trade Marketing van primero; dentro de cada grupo, por relevancia y llegada.
-  const pendientes = [...ordenarSolicitudes(solicitudes.filter((s) => s.deTrade)), ...ordenarSolicitudes(solicitudes.filter((s) => !s.deTrade))];
+  // Primero los lugares con impulsadora fija (para asegurarla), luego las de Trade y luego las de los vendedores.
+  const fijas = solicitudes.filter((s) => impulsadoraFija(s.lugar));
+  const resto = solicitudes.filter((s) => !impulsadoraFija(s.lugar));
+  const pendientes = [...ordenarSolicitudes(fijas), ...ordenarSolicitudes(resto.filter((s) => s.deTrade)), ...ordenarSolicitudes(resto.filter((s) => !s.deTrade))];
   const asignadas = new Set<string>();
   // Primero todo a la hora pedida. Lo que no se cubra por falta de descanso se intenta corriendo el turno
   // media hora (más tarde y, si no, más temprano), siempre respetando la hora y media entre turnos.
@@ -269,8 +283,10 @@ export function generarPropuesta(
   return { asignaciones, sinCobertura };
 
   function elegirImpulsadora(solicitud: SolicitudPropuesta) {
+    // Lugar con impulsadora fija: solo ella, aunque no haya marcado disponibilidad o sea de otro municipio.
+    const fija = impulsadoraFija(solicitud.lugar);
     const candidatas = impulsadoras
-      .filter((imp) => disponibles.has(claveDisponibilidad(imp.id, solicitud.inicio)) && puedeCubrir(imp, solicitud.municipio, solicitud.inicio))
+      .filter((imp) => fija ? imp.id === fija : disponibles.has(claveDisponibilidad(imp.id, solicitud.inicio)) && puedeCubrir(imp, solicitud.municipio, solicitud.inicio))
       .map((imp) => {
         const propios = ocupados.filter((t) => t.impulsadoraId === imp.id);
         const turno = { ...solicitud, id: undefined, impulsadoraId: imp.id };
@@ -283,7 +299,11 @@ export function generarPropuesta(
         const minimoB = b.carga < MINIMO_TURNOS_IMPULSADORA ? 0 : 1;
         const localA = a.imp.municipio === solicitud.municipio ? 0 : 1;
         const localB = b.imp.municipio === solicitud.municipio ? 0 : 1;
-        return localA - localB || minimoA - minimoB || a.carga - b.carga || a.imp.nombre.localeCompare(b.imp.nombre);
+        // En su propio municipio van primero las que no pueden salir (Rita antes que Danna en Montenegro),
+        // para dejar libres a las que sí pueden cubrir Armenia de día.
+        const flexA = localA === 0 && PUEDEN_SALIR[a.imp.id] ? 1 : 0;
+        const flexB = localB === 0 && PUEDEN_SALIR[b.imp.id] ? 1 : 0;
+        return localA - localB || flexA - flexB || minimoA - minimoB || a.carga - b.carga || a.imp.nombre.localeCompare(b.imp.nombre);
       });
 
     return candidatas[0];

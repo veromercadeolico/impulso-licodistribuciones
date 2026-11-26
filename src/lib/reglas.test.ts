@@ -278,3 +278,27 @@ test("Supermercados de 4 a 8 PM pasa a 3:30 PM; las demás horas no cambian", as
   assert.equal(horaSegunCanal("SUPERMERCADOS", "10:00"), "10:00");
   assert.equal(horaSegunCanal("CONSUMO", "20:00"), "21:00");
 });
+
+test("en Montenegro va primero Rita y Danna queda libre para Armenia de día", () => {
+  const imp = [
+    { id: "00e683f6-c1ed-4a0f-b452-65397b9c836b", nombre: "Danna", municipio: "MONTENEGRO" },
+    { id: "rita", nombre: "Rita", municipio: "MONTENEGRO" },
+  ];
+  const disp = new Set(imp.map((i) => `${i.id}|2026-11-28|tarde`));
+  const s = (id: string, municipio: string, creadoEn: string) => ({
+    id, municipio, canal: "SUPERMERCADOS", prioridad: null, creadoEn, inicio: "2026-11-28 15:00", fin: "2026-11-28 19:00",
+  });
+  const r = generarPropuesta([s("mont", "MONTENEGRO", "1"), s("arm", "ARMENIA", "2")], imp, disp);
+  assert.deepEqual(r.asignaciones.map((a) => [a.solicitudId, a.impulsadoraId]), [["mont", "rita"], ["arm", "00e683f6-c1ed-4a0f-b452-65397b9c836b"]]);
+});
+
+test("Club Campestre siempre con Ana Sofía, aunque sea de noche y de otro municipio", () => {
+  const ana = { id: "eba122eb-cf51-4e48-a501-d264b2957c78", nombre: "Ana Sofía", municipio: "LA TEBAIDA" };
+  const otra = { id: "arm", nombre: "Bea", municipio: "ARMENIA" };
+  const r = generarPropuesta(
+    [{ id: "1", lugar: "Club campestre", municipio: "ARMENIA", canal: "EVENTOS", prioridad: null, creadoEn: "1", inicio: "2026-11-28 18:00", fin: "2026-11-28 22:00" }],
+    [otra, ana],
+    new Set(["arm|2026-11-28|noche"]),
+  );
+  assert.equal(r.asignaciones[0].impulsadoraId, ana.id);
+});
