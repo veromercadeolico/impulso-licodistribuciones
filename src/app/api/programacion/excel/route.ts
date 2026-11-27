@@ -39,7 +39,8 @@ export async function GET(req: Request) {
         AND (${dias}::date[] IS NULL OR t.inicio::date = ANY(${dias}::date[]))`,
     sql`SELECT s.fecha::text, s.hora::text, c.nombre AS canal, p.municipio, p.nombre AS lugar, p.direccion, m.nombre AS marca,
         m.uniforme, s.prioridad, s.estado, u.nombre AS impulsadora, s.motivo_rechazo AS motivo, CASE WHEN s.servicio = 'bartender' THEN concat_ws('. ', 'BARTENDER', s.notas) ELSE s.notas END AS notas, s.obsequios,
-        v.nombre AS vendedor, to_char(s.creado_en AT TIME ZONE 'America/Bogota', 'YYYY-MM-DD HH24:MI') AS recibida
+        v.nombre AS vendedor, to_char(s.creado_en AT TIME ZONE 'America/Bogota', 'YYYY-MM-DD HH24:MI') AS recibida,
+        COALESCE(s.grupo::text, s.id::text) AS grupo
       FROM solicitudes s JOIN canales c ON c.codigo = s.canal JOIN puntos p ON p.id = s.punto_id
       JOIN marcas m ON m.codigo = s.marca JOIN usuarios v ON v.id = s.vendedor_id
       LEFT JOIN turnos t ON t.solicitud_id = s.id AND NOT t.cancelado LEFT JOIN usuarios u ON u.id = t.impulsadora_id

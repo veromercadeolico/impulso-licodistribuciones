@@ -30,6 +30,110 @@ const SELLO_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAA9zQYyAAAQAElEQV
  * Pone el sello de Lico flotando sobre la hoja, sin mover celdas (no cambia filas ni columnas).
  * `col` y `fila` empiezan en 0 y aceptan decimales; `tam` es el lado en píxeles.
  */
+export type ColumnaLico = { t: string; w: number; num?: boolean; dinero?: boolean };
+export type NotaLico = { titulo?: string; texto?: string };
+
+/** Primera fila de datos de las tablas hechas con `hojaLico` (la fila 7 es el encabezado). */
+export const FILA_DATOS_LICO = 8;
+
+/**
+ * Hoja con el estilo de Lico: franja crema con título, sello a la derecha, línea naranja, tabla con encabezado
+ * azul oscuro, filas intercaladas y TOTAL en naranja. Las columnas en `destacar` (1 = A) van resaltadas.
+ */
+export function hojaLico(
+  libro: ExcelJS.Workbook,
+  nombre: string,
+  titulo: string,
+  subtitulo: string,
+  cols: ColumnaLico[],
+  filas: ExcelJS.CellValue[][],
+  { total = false, destacar = [], notas = [] }: { total?: boolean; destacar?: number[]; notas?: NotaLico[] } = {},
+) {
+  const enc = FILA_DATOS_LICO - 1;
+  const hoja = libro.addWorksheet(nombre, { views: [{ state: "frozen", ySplit: enc, showGridLines: false }] });
+  const n = cols.length;
+  const relleno = (argb: string): ExcelJS.Fill => ({ type: "pattern", pattern: "solid", fgColor: { argb } });
+  cols.forEach((c, i) => (hoja.getColumn(i + 1).width = c.w));
+  for (let r = 1; r <= 4; r++) {
+    hoja.getRow(r).height = r === 2 ? 30 : 20;
+    for (let c = 1; c <= n; c++) hoja.getCell(r, c).fill = relleno(LICO.fondo);
+  }
+  hoja.getCell(1, 1).value = "LICO DISTRIBUCIONES · TRADE MARKETING";
+  hoja.getCell(1, 1).font = { name: "Calibri", size: 9, bold: true, color: { argb: LICO.marca } };
+  hoja.getCell(2, 1).value = titulo;
+  hoja.getCell(2, 1).font = { name: FUENTE_TITULO, size: 18, color: { argb: LICO.tinta } };
+  hoja.getCell(3, 1).value = subtitulo;
+  hoja.getCell(3, 1).font = { name: "Calibri", size: 10, italic: true, color: { argb: LICO.suave } };
+  hoja.getRow(5).height = 5;
+  for (let c = 1; c <= n; c++) hoja.getCell(5, c).fill = relleno(LICO.marca);
+  // Sello pegado al borde derecho de la tabla.
+  const px = cols.map((c) => c.w * 7 + 5);
+  let izq = px.reduce((a, b) => a + b, 0) - 100;
+  let col = 0;
+  while (col < px.length - 1 && izq > px[col]) { izq -= px[col]; col++; }
+  ponerSello(libro, hoja, col + Math.max(0, izq) / px[col], 0.1, 88);
+
+  const h = hoja.getRow(enc);
+  h.height = 34;
+  cols.forEach((c, i) => {
+    const celda = h.getCell(i + 1);
+    celda.value = c.t;
+    celda.fill = relleno(destacar.includes(i + 1) ? LICO.marca : LICO.tinta);
+    celda.font = { name: "Calibri", bold: true, size: 11, color: { argb: LICO.blanco } };
+    celda.alignment = { vertical: "middle", horizontal: c.num ? "center" : "left", wrapText: true, indent: c.num ? 0 : 1 };
+  });
+  filas.forEach((valores, j) => {
+    const fila = hoja.getRow(FILA_DATOS_LICO + j);
+    fila.height = 30;
+    valores.forEach((v, i) => {
+      const celda = fila.getCell(i + 1);
+      celda.value = v;
+      const fuerte = destacar.includes(i + 1);
+      celda.font = { name: "Calibri", size: 11, bold: fuerte, color: { argb: fuerte ? LICO.marcaFuerte : LICO.tinta } };
+      celda.fill = relleno(fuerte ? LICO.marcaClaro : j % 2 ? LICO.gris : LICO.blanco);
+      celda.alignment = { vertical: "middle", horizontal: cols[i].num ? "center" : "left", indent: cols[i].num ? 0 : 1, wrapText: !cols[i].num };
+      celda.border = { bottom: { style: "thin", color: { argb: LICO.linea } } };
+      if (cols[i].dinero) celda.numFmt = '"$" #,##0;;"–"';
+    });
+  });
+  const ultima = FILA_DATOS_LICO + filas.length - 1;
+  if (total && filas.length) {
+    const fila = hoja.getRow(ultima + 1);
+    fila.height = 24;
+    for (let c = 1; c <= n; c++) {
+      const celda = fila.getCell(c);
+      if (c === 1) celda.value = "TOTAL";
+      else if (cols[c - 1].num) {
+        const L = hoja.getColumn(c).letter;
+        celda.value = { formula: `SUM(${L}${FILA_DATOS_LICO}:${L}${ultima})` };
+        if (cols[c - 1].dinero) celda.numFmt = '"$" #,##0';
+      }
+      celda.fill = relleno(LICO.marca);
+      celda.font = { name: "Calibri", bold: true, size: 12, color: { argb: LICO.blanco } };
+      celda.alignment = { vertical: "middle", horizontal: c === 1 ? "left" : "center", indent: c === 1 ? 1 : 0 };
+    }
+  }
+  let r = ultima + (total ? 3 : 2);
+  if (!filas.length) {
+    hoja.getCell(FILA_DATOS_LICO, 1).value = "No hay registros para estos días.";
+    hoja.getCell(FILA_DATOS_LICO, 1).font = { name: "Calibri", size: 11, italic: true, color: { argb: LICO.suave } };
+    r = FILA_DATOS_LICO + 2;
+  }
+  for (const nota of notas) {
+    const celda = hoja.getCell(r++, 1);
+    celda.value = nota.titulo ?? nota.texto ?? "";
+    celda.font = nota.titulo
+      ? { name: FUENTE_TITULO, size: 13, color: { argb: LICO.tinta } }
+      : { name: "Calibri", size: 10, italic: true, color: { argb: LICO.suave } };
+  }
+  r++;
+  hoja.getCell(r, 1).value = "Lico Distribuciones · Tradición y excelencia · Entregamos con pasión, botella a botella";
+  hoja.getCell(r, 1).font = { name: FUENTE_TITULO, size: 9, italic: true, color: { argb: LICO.marca } };
+  hoja.pageSetup = { orientation: n > 6 ? "landscape" : "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+  hoja.headerFooter.oddFooter = "&L&8Lico Distribuciones · Trade Marketing&R&8Página &P de &N";
+  return { hoja, primera: FILA_DATOS_LICO, ultima };
+}
+
 const sellos = new WeakMap<ExcelJS.Workbook, number>();
 export function ponerSello(libro: ExcelJS.Workbook, hoja: ExcelJS.Worksheet, col: number, fila: number, tam = 60) {
   // La imagen se guarda una sola vez por libro y se reutiliza en cada hoja.

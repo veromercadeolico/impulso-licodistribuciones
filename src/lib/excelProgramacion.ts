@@ -1,6 +1,7 @@
 import ExcelJS from "exceljs";
 import { hora } from "./formato";
-import { FUENTE_TITULO, LICO, ponerSello } from "./marcaExcel";
+import { FILA_DATOS_LICO, FUENTE_TITULO, hojaLico, LICO, ponerSello } from "./marcaExcel";
+import { auxiliosAlimentacion, CUARTOS_POR_ANCHETA, extraerObsequios } from "./obsequios";
 import { aMinutos, DESCANSO_MINIMO_MIN } from "./reglas";
 
 // Reproduce la estructura de la plantilla "PROGRAMACION NOVIEMBRE 2026-SEM 3.xlsx" de Trade Marketing,
@@ -71,6 +72,8 @@ export type SolicitudExcel = {
   fecha: string; hora: string; canal: string; municipio: string; lugar: string; direccion: string | null; marca: string; uniforme: string;
   prioridad: number | null; estado: string; impulsadora: string | null; motivo: string | null; notas: string | null;
   obsequios: string | null; vendedor: string; recibida: string;
+  /** Solicitudes enviadas juntas (varias marcas o lugares) comparten grupo: sus obsequios se cuentan una vez. */
+  grupo?: string | null;
 };
 export type ImpulsadoraExcel = { nombre: string; municipio: string | null };
 export type CanalExcel = { codigo: string; meta_semanal: number; turnos: number };
@@ -375,7 +378,7 @@ function hojaEjecucion(libro: ExcelJS.Workbook, canales: CanalExcel[]) {
   ponerSello(libro, hoja, 5.2, 0.1, 70);
 }
 
-function hojaDegustacion(libro: ExcelJS.Workbook, deg: DegustacionExcel[], oficina: Map<string, number>) {
+function hojaDegustacion(libro: ExcelJS.Workbook, deg: DegustacionExcel[], oficina: Map<string, number>, extras: FilaPedido[] = []) {
   const hoja = libro.addWorksheet("DEGUSTACION");
   hoja.getColumn(1).width = 29;
   for (let c = 2; c <= 22; c++) hoja.getColumn(c).width = 15;
@@ -451,7 +454,7 @@ function hojaDegustacion(libro: ExcelJS.Workbook, deg: DegustacionExcel[], ofici
       hoja.getCell(12 + i, 1).value = `${d.tipo === "obsequio" ? "Obsequio" : "Degustación"}: ${cantidadTexto(d.asignado, d.presentacion, d.marca)}`;
     });
   }
-  consolidadoPedido(hoja, deg, oficina, sinColumna.length ? 14 + sinColumna.length : 12);
+  consolidadoPedido(hoja, deg, oficina, sinColumna.length ? 14 + sinColumna.length : 12, extras);
 }
 
 const NOMBRE_MARCA: Record<string, string> = {
@@ -468,7 +471,10 @@ const NOMBRE_PRESENTACION: Record<string, string> = { Media: "Media 375 ml", Bot
  * Consolidado por marca y referencia, debajo del cuadro: lo que se necesita, lo que hay en la oficina
  * (Programación → Degustación → En oficina), lo que hay que solicitar y lo que sobra. Las cuentas son fórmulas.
  */
-function consolidadoPedido(hoja: ExcelJS.Worksheet, deg: DegustacionExcel[], oficina: Map<string, number>, inicio: number) {
+/** Una fila del consolidado: la cantidad puede ser una fórmula que suma otra hoja (OBSEQUIOS, ANCHETAS). */
+type FilaPedido = { marca: string; referencia: string; uso: string; turnos: number; cantidad: ExcelJS.CellValue; oficina: number };
+
+function consolidadoPedido(hoja: ExcelJS.Worksheet, deg: DegustacionExcel[], oficina: Map<string, number>, inicio: number, extras: FilaPedido[] = []) {
   const grupos = new Map<string, { marca: string; presentacion: string; usos: Set<string>; turnos: Set<string>; cantidad: number }>();
   for (const d of deg) {
     const k = `${d.marca}|${d.presentacion}`;
@@ -478,19 +484,31 @@ function consolidadoPedido(hoja: ExcelJS.Worksheet, deg: DegustacionExcel[], ofi
     g.cantidad += d.asignado;
     grupos.set(k, g);
   }
-  const filas = [...grupos.values()].sort(
-    (a, b) => (NOMBRE_MARCA[a.marca] ?? a.marca).localeCompare(NOMBRE_MARCA[b.marca] ?? b.marca) || a.presentacion.localeCompare(b.presentacion),
-  );
+  const filas: FilaPedido[] = [
+    ...[...grupos.values()]
+      .sort((a, b) => (NOMBRE_MARCA[a.marca] ?? a.marca).localeCompare(NOMBRE_MARCA[b.marca] ?? b.marca) || a.presentacion.localeCompare(b.presentacion))
+      .map((g) => ({
+        marca: NOMBRE_MARCA[g.marca] ?? g.marca,
+        referencia: NOMBRE_PRESENTACION[g.presentacion] ?? g.presentacion,
+        uso: [...g.usos].join(" y "),
+        turnos: g.turnos.size,
+        cantidad: g.cantidad,
+        oficina: oficina.get(`${g.marca}|${g.presentacion}`) ?? 0,
+      })),
+    ...extras,
+  ];
   if (!filas.length) return;
 
   const titulo = hoja.getCell(inicio, 1);
   titulo.value = "CONSOLIDADO Y PEDIDO";
   titulo.font = { name: FUENTE_TITULO, size: 16, color: { argb: VERDE } };
-  hoja.getCell(inicio + 1, 1).value = "Cambia los números de DEGUSTACIÓN OFICINA y el archivo recalcula solo lo que hay que solicitar.";
+  hoja.getCell(inicio + 1, 1).value = extras.length
+    ? "Incluye degustación, obsequios (hoja OBSEQUIOS) y anchetas (hoja ANCHETAS, 2 cuartos de Esencial por ancheta). Cambia los números de OFICINA y se recalcula lo que hay que solicitar."
+    : "Cambia los números de DEGUSTACIÓN OFICINA y el archivo recalcula solo lo que hay que solicitar.";
   hoja.getCell(inicio + 1, 1).font = { name: "Calibri", size: 10, italic: true, color: { argb: LICO.suave } };
 
   const enc = inicio + 3;
-  const columnas = ["MARCA", "REFERENCIA", "USO", "TURNOS", "CANTIDAD NECESARIA", "DEGUSTACIÓN OFICINA", "CANTIDAD A SOLICITAR", "SOBRA EN OFICINA"];
+  const columnas = ["MARCA", "REFERENCIA", "USO", "TURNOS", "CANTIDAD NECESARIA", extras.length ? "EN OFICINA" : "DEGUSTACIÓN OFICINA", "CANTIDAD A SOLICITAR", "SOBRA EN OFICINA"];
   // La marca ocupa A:B para que quepa el nombre completo; el resto va de C en adelante.
   hoja.mergeCells(enc, 1, enc, 2);
   columnas.forEach((t, i) => {
@@ -502,15 +520,14 @@ function consolidadoPedido(hoja: ExcelJS.Worksheet, deg: DegustacionExcel[], ofi
 
   filas.forEach((g, j) => {
     const r = enc + 1 + j;
-    const en = oficina.get(`${g.marca}|${g.presentacion}`) ?? 0;
     hoja.mergeCells(r, 1, r, 2);
     const valores: ExcelJS.CellValue[] = [
-      NOMBRE_MARCA[g.marca] ?? g.marca,
-      NOMBRE_PRESENTACION[g.presentacion] ?? g.presentacion,
-      [...g.usos].join(" y "),
-      g.turnos.size,
+      g.marca,
+      g.referencia,
+      g.uso,
+      g.turnos,
       g.cantidad,
-      en,
+      g.oficina,
       { formula: `MAX(0,F${r}-G${r})` }, // necesaria (F) menos oficina (G)
       { formula: `MAX(0,G${r}-F${r})` },
     ];
@@ -520,7 +537,7 @@ function consolidadoPedido(hoja: ExcelJS.Worksheet, deg: DegustacionExcel[], ofi
       const pedido = i === 6;
       estilo(c, { tam: 12, negrita: pedido || i === 0, h: i <= 2 ? "left" : "center", fondo: pedido ? LICO.marcaClaro : j % 2 ? LICO.gris : BLANCO, color: pedido ? LICO.marcaFuerte : NEGRO });
     });
-    hoja.getRow(r).height = 22;
+    hoja.getRow(r).height = g.uso.length > 14 ? 38 : 22;
   });
 
   const fin = enc + filas.length;
@@ -637,6 +654,95 @@ function hojaRevision(libro: ExcelJS.Workbook, turnos: TurnoExcel[], solicitudes
   ponerSello(libro, hoja, columnas.length + 0.3, 0.1, 70);
 }
 
+const DIAS_TITULO = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+const diaCorto = (fecha: string) => {
+  const p = partes(fecha);
+  return `${DIAS_TITULO[DIAS.indexOf(p.dia)]} ${p.num}`;
+};
+const diaLargo = (fecha: string) => {
+  const p = partes(fecha);
+  return `${DIAS_TITULO[DIAS.indexOf(p.dia)].toLowerCase()} ${p.num} de ${p.mes.toLowerCase()} de ${p.anio}`;
+};
+
+type PedidoVendedor = { vendedor: string; fecha: string; hora: string; lugar: string; municipio: string; otrosLugares: string[]; texto: string; grupo: string };
+
+/** Una fila por solicitud enviada (las que comparten grupo se cuentan una vez), con lo que escribió el vendedor. */
+function pedidosVendedor(solicitudes: SolicitudExcel[], incluirPendientes: boolean): PedidoVendedor[] {
+  const vigentes = solicitudes.filter((s) => s.estado === "aprobada" || (incluirPendientes && s.estado === "pendiente"));
+  const porGrupo = new Map<string, PedidoVendedor>();
+  for (const s of vigentes) {
+    const grupo = s.grupo ?? `${s.vendedor}|${s.fecha}|${s.hora}|${s.lugar}`;
+    const previo = porGrupo.get(grupo);
+    if (previo) {
+      if (s.lugar !== previo.lugar && !previo.otrosLugares.includes(s.lugar)) previo.otrosLugares.push(s.lugar);
+      continue;
+    }
+    porGrupo.set(grupo, {
+      vendedor: s.vendedor, fecha: s.fecha, hora: s.hora, lugar: s.lugar, municipio: s.municipio, otrosLugares: [], grupo,
+      texto: [s.obsequios ? `Obsequios: ${s.obsequios}` : null, s.notas].filter(Boolean).join(". ").replace(/\s+/g, " ").trim(),
+    });
+  }
+  return [...porGrupo.values()].sort((a, b) => a.fecha.localeCompare(b.fecha) || a.vendedor.localeCompare(b.vendedor) || a.hora.localeCompare(b.hora));
+}
+
+/** "LA TEBAIDA" → "La Tebaida". */
+const titulo = (s: string) => s.toLowerCase().replace(/(^|\s)\p{L}/gu, (l) => l.toUpperCase());
+
+function hojaObsequios(libro: ExcelJS.Workbook, pedidos: PedidoVendedor[], subtitulo: string) {
+  const filas = pedidos
+    .map((p) => ({ p, o: extraerObsequios(p.texto) }))
+    .filter(({ o }) => o.cuartos || o.cocteles || o.shots);
+  const { primera, ultima } = hojaLico(libro, "OBSEQUIOS", "Obsequios pedidos por los vendedores", subtitulo,
+    [{ t: "Vendedor", w: 28 }, { t: "Día", w: 12 }, { t: "Lugar", w: 30 }, { t: "Municipio", w: 14 }, { t: "Cuartos de Esencial", w: 12, num: true }, { t: "Cócteles", w: 11, num: true }, { t: "Shots de Esencial", w: 11, num: true }, { t: "Lo que escribió el vendedor", w: 60 }],
+    filas.map(({ p, o }) => [p.vendedor, diaCorto(p.fecha), p.lugar, titulo(p.municipio), o.cuartos || null, o.cocteles || null, o.shots || null, p.texto]),
+    {
+      total: true, destacar: [5, 6, 7],
+      notas: [
+        { texto: "Sale de lo que escribieron los vendedores en Adicionales y Obsequios de sus solicitudes aprobadas. Los cuartos de obsequio siempre son de Esencial." },
+        { texto: "Revisa la última columna: si el vendedor lo escribió de otra forma, corrige el número aquí y el consolidado de DEGUSTACION se actualiza solo." },
+      ],
+    });
+  return { filas: filas.length, primera, ultima };
+}
+
+function hojaAnchetas(libro: ExcelJS.Workbook, pedidos: PedidoVendedor[], subtitulo: string) {
+  const filas = pedidos.map((p) => ({ p, n: extraerObsequios(p.texto).anchetas })).filter(({ n }) => n > 0);
+  const { primera, ultima } = hojaLico(libro, "ANCHETAS", "Anchetas por vendedor", subtitulo,
+    [{ t: "Vendedor", w: 28 }, { t: "Lugar", w: 32 }, { t: "Municipio", w: 14 }, { t: "Día y hora", w: 20 }, { t: "Cantidad de anchetas", w: 13, num: true }, { t: "Producto: cuartos de Esencial", w: 15, num: true }, { t: "Lo que escribió el vendedor", w: 58 }],
+    filas.map(({ p, n }, j) => [
+      p.vendedor, p.otrosLugares.length ? `${p.lugar} (también ${p.otrosLugares.join(", ")})` : p.lugar, titulo(p.municipio),
+      `${diaCorto(p.fecha)} · ${hora(`${p.fecha} ${p.hora}`)}`, n, { formula: `E${FILA_DATOS_LICO + j}*${CUARTOS_POR_ANCHETA}` }, p.texto,
+    ]),
+    {
+      total: true, destacar: [5, 6],
+      notas: [
+        { texto: `Cada ancheta lleva ${CUARTOS_POR_ANCHETA} cuartos de Esencial (por ejemplo, 2 anchetas = 4 cuartos).` },
+        { texto: "Solo solicitudes aprobadas. Si Trade entrega anchetas de una solicitud no programada, agrégala en una fila nueva antes del TOTAL." },
+      ],
+    });
+  return { filas: filas.length, primera, ultima };
+}
+
+function hojaAuxilio(libro: ExcelJS.Workbook, turnos: TurnoExcel[], subtitulo: string) {
+  const auxilios = auxiliosAlimentacion(turnos.map((t) => ({ impulsadora: t.impulsadora, inicio: t.inicio, fin: t.fin, lugar: t.lugar })), DESCANSO_MINIMO_MIN);
+  hojaLico(libro, "AUXILIO ALIMENTACION", "Auxilio de alimentación", subtitulo,
+    [{ t: "Impulsadora", w: 32 }, { t: "Día", w: 12 }, { t: "Turnos", w: 52 }, { t: "Almuerzo", w: 12, num: true, dinero: true }, { t: "Comida", w: 12, num: true, dinero: true }, { t: "Hidratación", w: 12, num: true, dinero: true }, { t: "Total", w: 13, num: true, dinero: true }, { t: "Observaciones", w: 50 }],
+    auxilios.map((a, j) => {
+      const r = FILA_DATOS_LICO + j;
+      return [
+        a.impulsadora, diaCorto(a.dia), a.turnos.map((t) => `${t.lugar} · ${hora(t.inicio)} a ${hora(t.fin)}`).join(" / "),
+        a.almuerzo || null, a.comida || null, a.hidratacion || null, { formula: `SUM(D${r}:F${r})` }, a.motivo,
+      ];
+    }),
+    {
+      total: true, destacar: [7],
+      notas: [
+        { texto: "Regla: $18.000 cuando hay menos de 1 h 30 entre dos turnos y entre los dos suman más de un turno (un turno partido de 2 h + 2 h no lleva auxilio)." },
+        { texto: "Turno continuo de 10 horas o más (eventos): almuerzo $18.000 + comida $18.000 + hidratación $10.000. Puedes cambiar los valores aquí y el total se recalcula." },
+      ],
+    });
+}
+
 export async function crearExcelProgramacion(d: {
   turnos: TurnoExcel[];
   degustacion: DegustacionExcel[];
@@ -665,7 +771,31 @@ export async function crearExcelProgramacion(d: {
   for (const dia of dias) {
     hojaDia(libro, dia, d.turnos.filter((t) => t.dia === dia), d.degustacion, d.impulsadoras, disponibles);
   }
-  hojaDegustacion(libro, d.degustacion, d.oficina);
+  // Obsequios y anchetas salen del texto de las solicitudes; en DEGUSTACION se suman al pedido con fórmulas.
+  const pedidos = pedidosVendedor(d.solicitudes, !!d.soloDias?.length);
+  const subtitulo = dias.length ? `Del ${diaLargo(dias[0])} al ${diaLargo(dias[dias.length - 1])}` : "";
+  const leidos = pedidos.map((p) => extraerObsequios(p.texto));
+  const cuenta = (f: (o: (typeof leidos)[number]) => number) => leidos.filter((o) => f(o) > 0).length;
+  const conObsequios = cuenta((o) => o.cuartos + o.cocteles + o.shots);
+  const conAnchetas = cuenta((o) => o.anchetas);
+  const rango = (n: number) => [FILA_DATOS_LICO, FILA_DATOS_LICO + Math.max(n, 1) - 1];
+  const [o1, o2] = rango(conObsequios);
+  const [a1, a2] = rango(conAnchetas);
+  const extras: FilaPedido[] = [];
+  if (conObsequios || conAnchetas) {
+    extras.push({
+      marca: "Ron Viejo de Caldas Esencial", referencia: "Cuarto 1/4", uso: "Obsequios y anchetas", turnos: cuenta((o) => o.cuartos) + conAnchetas,
+      cantidad: { formula: `SUM(OBSEQUIOS!E${o1}:E${o2})+SUM(ANCHETAS!F${a1}:F${a2})` }, oficina: d.oficina.get("ESE|Cuarto") ?? 0,
+    });
+  }
+  if (conObsequios) {
+    extras.push({ marca: "Cócteles", referencia: "Coctel", uso: "Obsequios", turnos: cuenta((o) => o.cocteles), cantidad: { formula: `SUM(OBSEQUIOS!F${o1}:F${o2})` }, oficina: 0 });
+    extras.push({ marca: "Ron Viejo de Caldas Esencial", referencia: "Shot", uso: "Obsequios", turnos: cuenta((o) => o.shots), cantidad: { formula: `SUM(OBSEQUIOS!G${o1}:G${o2})` }, oficina: d.oficina.get("ESE|Shot") ?? 0 });
+  }
+  hojaDegustacion(libro, d.degustacion, d.oficina, extras);
+  hojaObsequios(libro, pedidos, subtitulo);
+  hojaAnchetas(libro, pedidos, subtitulo);
+  hojaAuxilio(libro, d.turnos, subtitulo);
   hojaSolicitudes(libro, d.solicitudes);
   return libro.xlsx.writeBuffer();
 }
