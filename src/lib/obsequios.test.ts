@@ -1,6 +1,21 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { auxiliosAlimentacion, extraerObsequios } from "./obsequios.ts";
+import { auxiliosAlimentacion, extraerObsequios, obsequiosParaTurnos } from "./obsequios.ts";
+
+test("carga cuartos y shots de Esencial y cócteles de la marca del turno, una vez por grupo", () => {
+  const r = obsequiosParaTurnos([
+    { id: "t1", marca: "AA", grupo: "g1", texto: "6 cuartos. Viernes negro", yaTiene: false },
+    { id: "t2", marca: "ESE", grupo: "g1", texto: "6 cuartos. Viernes negro", yaTiene: false },
+    { id: "t3", marca: "CHEERS", grupo: "g2", texto: "Cocteles: 6. Merch: 3.", yaTiene: false },
+    { id: "t4", marca: "ESE", grupo: "g3", texto: "6 shot esencial", yaTiene: false },
+    { id: "t5", marca: "AA", grupo: "g4", texto: "12 cuartos", yaTiene: true },
+  ]);
+  assert.deepEqual(r, [
+    { turno_id: "t1", marca: "ESE", presentacion: "Cuarto", asignado: 6 },
+    { turno_id: "t3", marca: "CHEERS", presentacion: "Coctel", asignado: 6 },
+    { turno_id: "t4", marca: "ESE", presentacion: "Shot", asignado: 6 },
+  ]);
+});
 
 test("lee anchetas, cuartos, cócteles y shots de lo que escribe el vendedor", () => {
   assert.deepEqual(extraerObsequios("10 anchetas de amarillo y RVC tradicional"), { anchetas: 10, cuartos: 0, cocteles: 0, shots: 0 });

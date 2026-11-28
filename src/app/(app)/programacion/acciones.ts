@@ -8,6 +8,7 @@ import { fechaCorta, hora as horaTexto, nombrePeriodo, PRESENTACIONES } from "@/
 import { DETALLE_APROBADO_TURNO, enlaceFlujo, pasosPermitidos, puedeEditar, puedePublicar, type Paso } from "@/lib/flujo";
 import { estadoSemana } from "@/lib/flujoSemana";
 import { notificar } from "@/lib/notificar";
+import { obsequiosParaTurnos, type TurnoConTexto } from "@/lib/obsequios";
 import {
   claveDisponibilidad,
   DEGUSTACION_POR_CANAL,
@@ -55,8 +56,30 @@ async function asignarDegustacionBase(periodoId: string) {
       COALESCE((s.degustacion_pedida->>'cantidad')::int, x.cantidad), 'degustacion'
     FROM turnos t LEFT JOIN solicitudes s ON s.id = t.solicitud_id
     LEFT JOIN jsonb_to_recordset(${JSON.stringify(tabla)}::jsonb) AS x(canal text, presentacion text, cantidad int) ON x.canal = t.canal
-    WHERE t.periodo_id = ${periodoId} AND NOT t.cancelado AND NOT EXISTS (SELECT 1 FROM degustacion d WHERE d.turno_id = t.id)
+    WHERE t.periodo_id = ${periodoId} AND NOT t.cancelado
+      AND NOT EXISTS (SELECT 1 FROM degustacion d WHERE d.turno_id = t.id AND d.tipo = 'degustacion')
       AND COALESCE(s.degustacion_pedida->>'presentacion', x.presentacion) IS NOT NULL
+    ON CONFLICT (turno_id, marca, presentacion) DO NOTHING`;
+}
+
+/**
+ * Carga como obsequio los cuartos y shots de Esencial y los cócteles que el vendedor escribió en su solicitud,
+ * para que la impulsadora reporte en su turno cuánto entregó y cuánto sobró. Una vez por grupo de solicitudes,
+ * y nunca encima de obsequios que ya tenga el grupo (por ejemplo, los que Trade asignó a mano).
+ */
+async function asignarObsequiosDeTexto(periodoId: string) {
+  const filas = await sql`SELECT t.id, t.marca, COALESCE(s.grupo::text, s.id::text) AS grupo,
+      concat_ws(' ', s.obsequios, s.notas) AS texto,
+      EXISTS (SELECT 1 FROM degustacion d JOIN turnos t2 ON t2.id = d.turno_id LEFT JOIN solicitudes s2 ON s2.id = t2.solicitud_id
+        WHERE d.tipo = 'obsequio' AND NOT t2.cancelado AND COALESCE(s2.grupo::text, s2.id::text) = COALESCE(s.grupo::text, s.id::text)) AS "yaTiene"
+    FROM turnos t JOIN solicitudes s ON s.id = t.solicitud_id
+    WHERE t.periodo_id = ${periodoId} AND NOT t.cancelado AND s.estado <> 'rechazada'
+    ORDER BY t.inicio, t.id`;
+  const nuevos = obsequiosParaTurnos(filas as TurnoConTexto[]);
+  if (!nuevos.length) return;
+  await sql`INSERT INTO degustacion (turno_id, marca, presentacion, asignado, tipo)
+    SELECT x.turno_id, x.marca, x.presentacion, x.asignado, 'obsequio'
+    FROM jsonb_to_recordset(${JSON.stringify(nuevos)}::jsonb) AS x(turno_id uuid, marca text, presentacion text, asignado int)
     ON CONFLICT (turno_id, marca, presentacion) DO NOTHING`;
 }
 
@@ -181,6 +204,7 @@ export async function proponerProgramacion(datos: FormData) {
         punto_id uuid, marca text, uniforme text, servicio text, inicio timestamp, fin timestamp)`;
   }
   await asignarDegustacionBase(periodoId);
+  await asignarObsequiosDeTexto(periodoId);
   await recalcularAlertas(periodoId);
   const eventosFuera = await avisarEventosFuera(periodoId);
   const corridos = asignaciones.filter((a) => a.corridoMin !== 0).length;
@@ -280,6 +304,7 @@ export async function aprobarSolicitud(datos: FormData) {
       ajuste_manual = true, cancelado = false, publicado = turnos.publicado OR EXCLUDED.publicado
     RETURNING id`;
   await sql`UPDATE solicitudes SET estado = 'aprobada', motivo_rechazo = NULL, punto_id = ${puntoId} WHERE id = ${id}`;
+  await asignarObsequiosDeTexto(periodoId);
   await recalcularAlertas(periodoId);
   await pedirAprobacionDeCambio(periodoId, turno.id, autor.rol, `${lugar}, ${fechaCorta(inicio)} de ${horaTexto(inicio)} a ${horaTexto(fin)}.`);
 

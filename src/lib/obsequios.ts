@@ -33,7 +33,39 @@ export function extraerObsequios(texto: string | null | undefined): Obsequios {
   };
 }
 
-export type TurnoAuxilio = { impulsadora: string; inicio: string; fin: string; lugar: string };
+export type TurnoConTexto = {
+  id: string;
+  /** Marca del turno: los cócteles son de esa marca. */
+  marca: string;
+  /** Solicitudes enviadas juntas comparten grupo: sus obsequios se cargan una sola vez. */
+  grupo: string;
+  texto: string;
+  /** El grupo ya tiene obsequios cargados (por la app o a mano por Trade). */
+  yaTiene: boolean;
+};
+export type ObsequioTurno = { turno_id: string; marca: string; presentacion: string; asignado: number };
+
+/**
+ * Obsequios que la app carga en cada turno a partir de lo que escribió el vendedor, para que la impulsadora
+ * reporte en su turno cuánto entregó y cuánto sobró: cuartos y shots de Esencial, y cócteles de la marca del turno.
+ * Se cargan en el primer turno de cada grupo (los turnos deben venir ordenados por hora).
+ */
+export function obsequiosParaTurnos(turnos: TurnoConTexto[]): ObsequioTurno[] {
+  const vistos = new Set<string>();
+  const salida: ObsequioTurno[] = [];
+  for (const t of turnos) {
+    if (vistos.has(t.grupo)) continue;
+    vistos.add(t.grupo);
+    if (t.yaTiene) continue;
+    const o = extraerObsequios(t.texto);
+    if (o.cuartos) salida.push({ turno_id: t.id, marca: "ESE", presentacion: "Cuarto", asignado: o.cuartos });
+    if (o.shots) salida.push({ turno_id: t.id, marca: "ESE", presentacion: "Shot", asignado: o.shots });
+    if (o.cocteles) salida.push({ turno_id: t.id, marca: t.marca, presentacion: "Coctel", asignado: o.cocteles });
+  }
+  return salida;
+}
+
+export type TurnoAuxilio ={ impulsadora: string; inicio: string; fin: string; lugar: string };
 export type Auxilio = {
   impulsadora: string;
   dia: string;

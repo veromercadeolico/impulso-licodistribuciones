@@ -89,7 +89,7 @@ export const MUNICIPIOS = [
   "SALENTO",
 ];
 
-export const PRESENTACIONES = ["Media", "Botella", "Litro", "Tetra", "Cuarto", "Shot"];
+export const PRESENTACIONES = ["Media", "Botella", "Litro", "Tetra", "Cuarto", "Shot", "Coctel"];
 export const PRIORIDADES: Record<number, string> = { 1: "Alta", 2: "Media", 3: "Baja" };
 
 /** Subperfiles del equipo: en qué área trabaja cada persona. */
